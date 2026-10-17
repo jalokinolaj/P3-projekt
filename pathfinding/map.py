@@ -2,7 +2,7 @@ import random
 width = 48
 height = 48
 border = 3
-def generate_map(width, height, shelf_width, shelf_length, map_density, num_deliveries):
+def generate_map(width, height, border, shelf_width, shelf_length, map_density, num_deliveries):
     """ Generates a random map with given width and height, where each cell has a certain probability of being an obstacle."""
     grid = [[0 for x in range(width)] for y in range(height)]
 
@@ -61,7 +61,7 @@ def generate_map(width, height, shelf_width, shelf_length, map_density, num_deli
 def place_intersections(grid, shelf_width, shelf_length, cross_aisle, aisle_spacing):
     height = len(grid)
     width = len(grid[0])
-    intersection_index = 0
+    
 
     start_y = aisle_spacing//2
     start_x = cross_aisle//2
@@ -69,13 +69,33 @@ def place_intersections(grid, shelf_width, shelf_length, cross_aisle, aisle_spac
     step_y = shelf_length + aisle_spacing
     step_x = shelf_width + cross_aisle
 
+    intersections = []
+    intersection_index = 0
     for r in range(start_y, height, step_y):
         for c in range(start_x, width, step_x):
             if grid[r][c] == 0:  # If the cell is not an obstacle
-                grid[r][c] = f"I{intersection_index}"  # Mark the cell as an intersection
-                intersection_index += 1
-    return grid
+                intersections.append((r, c))
+    if not intersections:
+        return grid
 
+    top_row = intersections[0][0]
+    top_row_nodes = [pos for pos in intersections if pos[0] == top_row]
+
+    
+
+    top_left = min(top_row_nodes, key=lambda x: x[1])
+    top_right = max(top_row_nodes, key=lambda x: x[1]) if len(top_row_nodes) > 1 else None
+    
+
+    for (r, c) in intersections:
+        if (r, c) == top_left:
+            grid[r][c] = "S0"
+        elif (r, c) == top_right:
+            grid[r][c] = "S1"
+        else:
+            grid[r][c] = f"I{intersection_index}"
+            intersection_index += 1
+    return grid
 
 def trim_map(grid):
     #Find the last shelf in the grid and trim the map to that point.
@@ -102,10 +122,15 @@ def print_map(grid):
     """ Prints the map to the console."""
     for row in grid:
         print(' '.join(str(cell).ljust(3) for cell in row))
+# Generate and print the map Width, Height, border, Shelf Width, Shelf Length, Map Density, and Number of Deliveries.
+def build_map(width, height, border, shelf_width, shelf_length, map_density, num_deliveries):
+    """Builds the map by generating it, trimming it, placing intersections, and printing it."""
+    map = generate_map(width, height, border, shelf_width, shelf_length, map_density, num_deliveries)
+    map = trim_map(map)
+    map = place_intersections(map, shelf_width, shelf_length, cross_aisle, aisle_spacing)
+    return map
 
 
-# Generate and print the map Width, Height, Shelf Width, Shelf Length, Map Density, and Number of Deliveries.
-map = generate_map(width, height, 2, 8, 0.15, 5)
-map = place_intersections(map, 2, 8, 3, 3)
-map = trim_map(map)
-print_map(map)
+warehouse_map = build_map(48, 48, 2, 2, 8, 0.15, 5)
+
+print_map(warehouse_map)
