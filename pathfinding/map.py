@@ -34,7 +34,7 @@ def generate_map(width, height, border, shelf_width, shelf_length, cross_aisle, 
     valid_delivery_spots = []
     for x, y in shelves_coords:
         if x>0 and grid[y][x-1] == 0:  # If the cell is not an obstacle
-            valid_delivery_spots.append((x-1, y))
+            valid_delivery_spots.append((x-2, y))
 
 
     valid_delivery_spots = list(set(valid_delivery_spots))  # Remove duplicates
@@ -125,6 +125,6 @@ def build_map(width, height, border, shelf_width, shelf_length, cross_aisle, ais
 
 
 
-warehouse_map = build_map(48, 48, 3, 2, 8, 3, 3, 0.15, 5)
-
-print_map(warehouse_map)
+if __name__ == "__main__":
+    warehouse_map = build_map(48, 48, 3, 2, 8, 3, 3, 0.15, 5)
+    print_map(warehouse_map)
