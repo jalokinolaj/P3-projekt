@@ -1,8 +1,6 @@
 import random
-width = 48
-height = 48
-border = 3
-def generate_map(width, height, border, shelf_width, shelf_length, map_density, num_deliveries):
+
+def generate_map(width, height, border, shelf_width, shelf_length, cross_aisle, aisle_spacing, map_density, num_deliveries):
     """ Generates a random map with given width and height, where each cell has a certain probability of being an obstacle."""
     grid = [[0 for x in range(width)] for y in range(height)]
 
@@ -10,14 +8,9 @@ def generate_map(width, height, border, shelf_width, shelf_length, map_density, 
 #Cell is 10 cm long and 10 cm wide.
 
     total_cells = width * height
-    obstaclecell_count = int(total_cells * map_density)
-    print(total_cells)
-    print(obstaclecell_count)
-
-    cross_aisle = 3
 
 
-    shelf_area = shelf_width * shelf_length
+
 
     shelves_coords = []
 
@@ -97,7 +90,7 @@ def place_intersections(grid, shelf_width, shelf_length, cross_aisle, aisle_spac
             intersection_index += 1
     return grid
 
-def trim_map(grid):
+def trim_map(grid, border):
     #Find the last shelf in the grid and trim the map to that point.
     last_y=max(
         y for y, row in enumerate(grid)
@@ -123,14 +116,15 @@ def print_map(grid):
     for row in grid:
         print(' '.join(str(cell).ljust(3) for cell in row))
 # Generate and print the map Width, Height, border, Shelf Width, Shelf Length, Map Density, and Number of Deliveries.
-def build_map(width, height, border, shelf_width, shelf_length, map_density, num_deliveries):
+def build_map(width, height, border, shelf_width, shelf_length, cross_aisle, aisle_spacing, map_density, num_deliveries):
     """Builds the map by generating it, trimming it, placing intersections, and printing it."""
-    map = generate_map(width, height, border, shelf_width, shelf_length, map_density, num_deliveries)
-    map = trim_map(map)
+    map = generate_map(width, height, border, shelf_width, shelf_length, cross_aisle, aisle_spacing, map_density, num_deliveries)
+    map = trim_map(map, border)
     map = place_intersections(map, shelf_width, shelf_length, cross_aisle, aisle_spacing)
     return map
 
 
-warehouse_map = build_map(48, 48, 2, 2, 8, 0.15, 5)
+
+warehouse_map = build_map(48, 48, 3, 2, 8, 3, 3, 0.15, 5)
 
 print_map(warehouse_map)
