@@ -1,5 +1,5 @@
 from pathfinding.graph import build_adjacency_matrix, save_adjacency_matrix_to_csv
-from pathfinding.map import build_map, print_map
+from pathfinding.map import build_map, print_map, save_map_to_csv
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
         num_deliveries=5,
     )
 
-    print_map(warehouse_map)
+    save_map_to_csv(warehouse_map, "warehouse_map.csv")
     save_adjacency_matrix_to_csv(*build_adjacency_matrix(warehouse_map), "adjacency_matrix.csv")
 
 if __name__ == "__main__":

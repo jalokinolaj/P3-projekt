@@ -1,4 +1,5 @@
 import random
+import pandas as pd
 
 def generate_map(width, height, border, shelf_width, shelf_length, cross_aisle, aisle_spacing, map_density, num_deliveries):
     """ Generates a random map with given width and height, where each cell has a certain probability of being an obstacle."""
@@ -123,8 +124,12 @@ def build_map(width, height, border, shelf_width, shelf_length, cross_aisle, ais
     map = place_intersections(map, shelf_width, shelf_length, cross_aisle, aisle_spacing)
     return map
 
+def save_map_to_csv(grid, filename):
+    df = pd.DataFrame(grid)
+    df.to_csv(filename, index=False, header=False)
+
 
 
 if __name__ == "__main__":
     warehouse_map = build_map(48, 48, 3, 2, 8, 3, 3, 0.15, 5)
-    print_map(warehouse_map)
+    save_map_to_csv(warehouse_map, "warehouse_map.csv")
