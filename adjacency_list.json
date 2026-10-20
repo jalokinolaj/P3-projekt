@@ -1,264 +1,750 @@
 {
     "S0": {
-        "I7": 11,
-        "I0": 5
+        "I7": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I0": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I0": {
-        "I8": 11,
-        "S0": 5,
-        "I1": 5
+        "I8": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "S0": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I1": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I1": {
-        "I9": 11,
-        "I0": 5,
-        "I2": 5
+        "I9": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I0": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I2": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I2": {
-        "I10": 11,
-        "I1": 5,
-        "I3": 5
+        "I10": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I1": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I3": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I3": {
-        "I11": 11,
-        "I2": 5,
-        "I4": 5
+        "I11": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I2": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I4": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I4": {
-        "I12": 11,
-        "I3": 5,
-        "I5": 5
+        "I12": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I3": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I5": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I5": {
-        "I13": 11,
-        "I4": 5,
-        "I6": 5
+        "I13": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I4": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I6": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I6": {
-        "I14": 11,
-        "I5": 5,
-        "S1": 5
+        "I14": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I5": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "S1": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "S1": {
-        "I15": 11,
-        "I6": 5
+        "I15": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I6": {
+            "cost": 5,
+            "direction": "west"
+        }
     },
     "I7": {
-        "S0": 11,
-        "I16": 11,
-        "I8": 5
+        "S0": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I16": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I8": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I8": {
-        "I0": 11,
-        "I17": 11,
-        "I7": 5,
-        "I9": 5
+        "I0": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "D3": {
+            "cost": 4,
+            "direction": "south"
+        },
+        "I7": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I9": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I9": {
-        "I1": 11,
-        "I18": 11,
-        "I8": 5,
-        "I10": 5
+        "I1": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I18": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I8": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I10": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I10": {
-        "I2": 11,
-        "D0": 3,
-        "I9": 5,
-        "I11": 5
+        "I2": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I19": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I9": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I11": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I11": {
-        "I3": 11,
-        "I20": 11,
-        "I10": 5,
-        "I12": 5
+        "I3": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I20": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I10": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I12": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I12": {
-        "I4": 11,
-        "I21": 11,
-        "I11": 5,
-        "I13": 5
+        "I4": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I21": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I11": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I13": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I13": {
-        "I5": 11,
-        "I22": 11,
-        "I12": 5,
-        "I14": 5
+        "I5": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "D0": {
+            "cost": 4,
+            "direction": "south"
+        },
+        "I12": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I14": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I14": {
-        "I6": 11,
-        "I23": 11,
-        "I13": 5,
-        "I15": 5
+        "I6": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I23": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I13": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I15": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I15": {
-        "S1": 11,
-        "I24": 11,
-        "I14": 5
-    },
-    "D0": {
-        "I10": 3,
-        "I19": 8
-    },
-    "I16": {
-        "I7": 11,
-        "D4": 5,
-        "I17": 5
-    },
-    "I17": {
-        "I8": 11,
-        "I26": 11,
-        "I16": 5,
-        "I18": 5
-    },
-    "I18": {
-        "I9": 11,
-        "I27": 11,
-        "I17": 5,
-        "I19": 5
-    },
-    "I19": {
-        "D0": 8,
-        "I28": 11,
-        "I18": 5,
-        "I20": 5
-    },
-    "I20": {
-        "I11": 11,
-        "I29": 11,
-        "I19": 5,
-        "I21": 5
-    },
-    "I21": {
-        "I12": 11,
-        "I30": 11,
-        "I20": 5,
-        "I22": 5
-    },
-    "I22": {
-        "I13": 11,
-        "D1": 2,
-        "I21": 5,
-        "I23": 5
-    },
-    "I23": {
-        "I14": 11,
-        "I32": 11,
-        "I22": 5,
-        "I24": 5
-    },
-    "I24": {
-        "I15": 11,
-        "I33": 11,
-        "I23": 5
-    },
-    "D1": {
-        "I22": 2,
-        "D2": 6
-    },
-    "D4": {
-        "I16": 5,
-        "I25": 6
-    },
-    "D2": {
-        "D1": 6,
-        "I31": 3
-    },
-    "I25": {
-        "D4": 6,
-        "I34": 11,
-        "I26": 5
-    },
-    "I26": {
-        "I17": 11,
-        "I35": 11,
-        "I25": 5,
-        "I27": 5
-    },
-    "I27": {
-        "I18": 11,
-        "I36": 11,
-        "I26": 5,
-        "I28": 5
-    },
-    "I28": {
-        "I19": 11,
-        "I37": 11,
-        "I27": 5,
-        "I29": 5
-    },
-    "I29": {
-        "I20": 11,
-        "I38": 11,
-        "I28": 5,
-        "I30": 5
-    },
-    "I30": {
-        "I21": 11,
-        "I39": 11,
-        "I29": 5,
-        "I31": 5
-    },
-    "I31": {
-        "D2": 3,
-        "D3": 5,
-        "I30": 5,
-        "I32": 5
-    },
-    "I32": {
-        "I23": 11,
-        "I41": 11,
-        "I31": 5,
-        "I33": 5
-    },
-    "I33": {
-        "I24": 11,
-        "I42": 11,
-        "I32": 5
+        "S1": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I24": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I14": {
+            "cost": 5,
+            "direction": "west"
+        }
     },
     "D3": {
-        "I31": 5,
-        "I40": 6
+        "I8": {
+            "cost": 4,
+            "direction": "north"
+        },
+        "I17": {
+            "cost": 7,
+            "direction": "south"
+        }
+    },
+    "D0": {
+        "I13": {
+            "cost": 4,
+            "direction": "north"
+        },
+        "D1": {
+            "cost": 5,
+            "direction": "south"
+        }
+    },
+    "D1": {
+        "D0": {
+            "cost": 5,
+            "direction": "north"
+        },
+        "I22": {
+            "cost": 2,
+            "direction": "south"
+        }
+    },
+    "I16": {
+        "I7": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I25": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I17": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I17": {
+        "D3": {
+            "cost": 7,
+            "direction": "north"
+        },
+        "I26": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I16": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I18": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I18": {
+        "I9": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I27": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I17": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I19": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I19": {
+        "I10": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "D2": {
+            "cost": 9,
+            "direction": "south"
+        },
+        "I18": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I20": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I20": {
+        "I11": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I29": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I19": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I21": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I21": {
+        "I12": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I30": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I20": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I22": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I22": {
+        "D1": {
+            "cost": 2,
+            "direction": "north"
+        },
+        "I31": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I21": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I23": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I23": {
+        "I14": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I32": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I22": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I24": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I24": {
+        "I15": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I33": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I23": {
+            "cost": 5,
+            "direction": "west"
+        }
+    },
+    "D2": {
+        "I19": {
+            "cost": 9,
+            "direction": "north"
+        },
+        "I28": {
+            "cost": 2,
+            "direction": "south"
+        }
+    },
+    "I25": {
+        "I16": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I34": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I26": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I26": {
+        "I17": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I35": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I25": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I27": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I27": {
+        "I18": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I36": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I26": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I28": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I28": {
+        "D2": {
+            "cost": 2,
+            "direction": "north"
+        },
+        "I37": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I27": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I29": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I29": {
+        "I20": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I38": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I28": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I30": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I30": {
+        "I21": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "D4": {
+            "cost": 7,
+            "direction": "south"
+        },
+        "I29": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I31": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I31": {
+        "I22": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I40": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I30": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I32": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I32": {
+        "I23": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I41": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I31": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I33": {
+            "cost": 5,
+            "direction": "east"
+        }
+    },
+    "I33": {
+        "I24": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I42": {
+            "cost": 11,
+            "direction": "south"
+        },
+        "I32": {
+            "cost": 5,
+            "direction": "west"
+        }
+    },
+    "D4": {
+        "I30": {
+            "cost": 7,
+            "direction": "north"
+        },
+        "I39": {
+            "cost": 4,
+            "direction": "south"
+        }
     },
     "I34": {
-        "I25": 11,
-        "I35": 5
+        "I25": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I35": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I35": {
-        "I26": 11,
-        "I34": 5,
-        "I36": 5
+        "I26": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I34": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I36": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I36": {
-        "I27": 11,
-        "I35": 5,
-        "I37": 5
+        "I27": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I35": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I37": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I37": {
-        "I28": 11,
-        "I36": 5,
-        "I38": 5
+        "I28": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I36": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I38": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I38": {
-        "I29": 11,
-        "I37": 5,
-        "I39": 5
+        "I29": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I37": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I39": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I39": {
-        "I30": 11,
-        "I38": 5,
-        "I40": 5
+        "D4": {
+            "cost": 4,
+            "direction": "north"
+        },
+        "I38": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I40": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I40": {
-        "D3": 6,
-        "I39": 5,
-        "I41": 5
+        "I31": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I39": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I41": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I41": {
-        "I32": 11,
-        "I40": 5,
-        "I42": 5
+        "I32": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I40": {
+            "cost": 5,
+            "direction": "west"
+        },
+        "I42": {
+            "cost": 5,
+            "direction": "east"
+        }
     },
     "I42": {
-        "I33": 11,
-        "I41": 5
+        "I33": {
+            "cost": 11,
+            "direction": "north"
+        },
+        "I41": {
+            "cost": 5,
+            "direction": "west"
+        }
     }
 }

@@ -4,6 +4,13 @@ import numpy as np
 import pandas as pd
 import json
 
+direction_lookup = {
+    (-1, 0): "north",
+    (1, 0): "south",
+    (0, -1): "west",
+    (0, 1): "east"
+}
+
 def build_adjacency_matrix(grid):
     height = len(grid)
     width = len(grid[0])
@@ -31,6 +38,9 @@ def build_adjacency_matrix(grid):
     for i, (start_r, start_c) in enumerate(node_positions):
         node_name = node_names[i]
         for dr, dc in directions:
+
+            direction_name = direction_lookup[(dr, dc)]
+
             r, c = start_r + dr, start_c + dc
             distance = 1
 
@@ -47,7 +57,7 @@ def build_adjacency_matrix(grid):
                     adjacency_matrix[i][j] = distance
                     adjacency_matrix[j][i] = distance
 
-                    adjacency_list[node_name][target_name] = distance
+                    adjacency_list[node_name][target_name] = {"cost": distance, "direction": direction_name}
                     break
 
                 r += dr
