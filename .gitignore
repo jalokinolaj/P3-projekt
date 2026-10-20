@@ -10,7 +10,7 @@ ENV/
 
 # Datafiler og CSV-filer (hvis de genereres dynamisk)
 *.csv
-.json
+*.json
 
 # Operativsystem-specifikke filer
 .DS_Store
