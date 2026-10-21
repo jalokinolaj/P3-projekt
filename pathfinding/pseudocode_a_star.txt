@@ -1,0 +1,67 @@
+Heuristic Function"manhattan"(node_a, node_b, coordinates)
+    (x_1, y_1)=coordinates[node_a]
+    (x_2, y_2)=coordinates[node_b]
+    h = absolute(x_1-x_2)+ absolute(y_1-y_2)
+    return h
+
+function reconstructPath(came_from, current_state)
+    total_path = [current_state]
+    while current_state in came_from
+        current_state = came_from[current_state]
+        total_path.prepend(current_state)
+    return total_path
+
+
+Function a_star(adjacency_list, start_node, goal_node, coordinates, turn_penalty_cost)
+
+    
+    start_state = (node: start_node, direction: None)
+
+    h_start = manhattan(start_node, goal_node, coordinates)
+
+    openSet = new priority queue
+    openSet.insert (start_state, priority= manhattan(start_node, goal_node, coordinates))
+
+    came_from = empty map
+
+    gScore = map with standardvalue of infinite
+    fScore = map with standardvalue of infinite
+
+    gScore[start_state] = 0
+    fScore[start_state]= h_start
+
+
+    while openSet is not empty
+
+        current_state = openSet.pop_lowest()
+
+        (current_node, current_dir) = current_state
+
+        if current_node == goal_node:
+            return reconstructPath(came_from, current_state)
+
+        for each (neighbor_name, edge) in adjacency_list[current_node]
+
+            step_cost = edge["cost"]
+            neighbor_direction = edge["direction"]
+            neighbor_state = (node: neighbor_name, direction: neighbor_direction)
+
+    //tentative_g_score is the distance from start to the neighbor through  current_state
+
+            tentative_g_score = gScore[current_state] + step_cost
+
+            if current_dir != None and current_dir != neighbor_direction:
+                tentative_g_score = tentative_g_score + turn_penalty_cost
+
+            if tentative_g_score < gScore[neighbor_state]
+                came_from[neighbor_state] = current_state
+                gScore[neighbor_state] = tentative_g_score
+                fScore[neighbor_state] = tentative_g_score + manhattan(neighbor_name, goal_node, coordinates)
+
+                if neighbor_state not in openSet
+                    openSet.insert(neighbor_state, priority = fScore[neighbor_state])
+                else
+                    openSet.update_priority(neighbor_state, fScore[neighbor_state])
+
+    return failure        
+
