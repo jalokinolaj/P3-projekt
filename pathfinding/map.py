@@ -130,6 +130,7 @@ def save_map_to_csv(grid, filename):
 
 
 
+
 if __name__ == "__main__":
     warehouse_map = build_map(48, 48, 3, 2, 8, 3, 3, 0.15, 5)
     save_map_to_csv(warehouse_map, "warehouse_map.csv")
