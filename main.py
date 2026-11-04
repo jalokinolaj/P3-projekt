@@ -36,10 +36,10 @@ def main():
             
         adjacency_list = data["adjacency_list"]
         node_coordinates = data["node_coordinates"]
-        print("Kort indlæst succesfuldt!")
+        print("Map and adjacency list loaded successfully.")
         
     except FileNotFoundError:
-        print("Fejl: Kunne ikke finde 'adjacency_list.json'. Sørg for den ligger i mappen.")
+        print("Error: adjacency_list.json file not found. Please ensure the file exists.")
         return
 
     # 2. Eksempel på at bruge dataen (f.eks. når en robot anmoder om en rute)
@@ -55,9 +55,9 @@ def main():
         turn_cost=2,
     )
     
-    print(f"Beregnet rute fra {start_node} til {goal_node}:", path)
-    print(f"Rute længde: {len(path)} trin")
-    print(f"Rute length without turn penalty: {pure_distance(path, adjacency_list)}")
+    print(f"Found path from {start_node} to {goal_node}:", path)
+    print(f"Path length: {len(path)} steps")
+    print(f"Path length without turn penalty: {pure_distance(path, adjacency_list)}")
 
     # 3. Her starter din servers primære løkke (f.eks. modtag besked fra JetBots osv.)
     # while True:

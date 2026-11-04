@@ -37,9 +37,8 @@ def pure_distance(path, adjacency_list):
 
 def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_cost, turn_cost):
     start_state = (start_node, None)  # (node, direction)
-    goal_state = (goal_node, None)  # (node, direction)
-
     openSet = []
+    
     h_start = heuristic(start_state, goal_node, node_coordinates)
 
     counter = 0  # Initialize a counter to break ties in the priority queue
