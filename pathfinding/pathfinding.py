@@ -35,8 +35,8 @@ def pure_distance(path, adjacency_list):
 
     return distance
 
-def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_cost, turn_cost):
-    start_state = (start_node, None)  # (node, direction)
+def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_cost, turn_cost, timetable, start_time, time_cost):
+    start_state = (start_node, None, start_time)  # (node, direction, time)
     openSet = []
     
     h_start = heuristic(start_state, goal_node, node_coordinates)
@@ -46,11 +46,8 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
 
     came_from = {}
 
-    gScore = {node: float('inf') for node in adjacency_list}
-    fScore = {node: float('inf') for node in adjacency_list}
-
-    gScore[start_state] = 0
-    fScore[start_state] = h_start
+    gScore = {start_state: 0}
+    fScore = {start_state: h_start}
 
     open_set_states = {start_state}  # Keep track of states in the open set for quick membership testing
 
@@ -58,17 +55,38 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
         _, _, current_state = heapq.heappop(openSet)
         open_set_states.discard(current_state)
 
-        node_id, current_direction = current_state
+        node_id, current_direction, current_time = current_state
 
         if node_id == goal_node:
             return reconstruct_path(came_from, current_state)
+
+        next_time_wait = current_time + time_cost
+        wait_state = (node_id, current_direction, next_time_wait)
+
+        if (node_id, next_time_wait) not in timetable:
+            tentative_gScore = gScore[current_state] + time_cost  # Cost for waiting
+            if tentative_gScore < gScore.get(wait_state, float('inf')):
+                came_from[wait_state] = current_state
+                gScore[wait_state] = tentative_gScore
+                fScore[wait_state] = gScore[wait_state] + heuristic(wait_state, goal_node, node_coordinates)
+
+                if wait_state not in open_set_states:
+                    counter += 1
+                    heapq.heappush(openSet, (fScore[wait_state], counter, wait_state))
+                    open_set_states.add(wait_state)
+
+
+
         for neighbor_node, edge_data in adjacency_list[node_id].items():
             neighbor_dir = edge_data["direction"]
             edge_cost = edge_data["cost"]
 
+            next_time_move = current_time + edge_cost
             neighbor_state = (neighbor_node, neighbor_dir)
+            neighbor_state = (neighbor_node, neighbor_dir, next_time_move)
 
-
+            if (neighbor_node, next_time_move) in timetable:
+                continue  # Skip this neighbor if it's not available at the next time step
             tentative_gScore = gScore[current_state] + edge_cost  # Assuming uniform cost for each step
 
             if current_direction is not None and current_direction != neighbor_dir:

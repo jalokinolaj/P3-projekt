@@ -86,7 +86,12 @@ def save_adjacency_list_to_json(graph_data, filename):
     with open(filename, 'w') as f:
         json.dump(graph_data, f, indent=4)
 
-def load_adjacency_list_from_json(filename):
-    with open(filename, 'r') as f:
-        adjacency_list = json.load(f)
-    return adjacency_list
+def load_graph_data(filename):
+
+    with open(filename, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    adjacency_list = data.get("adjacency_list")
+    node_coordinates = data.get("node_coordinates")
+
+    return adjacency_list, node_coordinates
