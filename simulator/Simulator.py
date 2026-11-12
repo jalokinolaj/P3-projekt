@@ -5,13 +5,14 @@ import sys
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 import time
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.cm as cm
 
-from pathfinding.pathfinding import a_star_search, edge_key
+from fleetmanager.fleetmanager import FleetManager
 from pathfinding.graph import load_graph_data
 
 def get_robot_position_at_time(robot_path, node_coordinates, simulation_time):
@@ -46,7 +47,8 @@ def get_robot_position_at_time(robot_path, node_coordinates, simulation_time):
 
 def run_simulation():
     # Load graph data
-    adjacency_list, node_coordinates = load_graph_data("adjacency_list.json")
+    graph_path = os.path.join(PROJECT_ROOT, "adjacency_list.json")
+    adjacency_list, node_coordinates = load_graph_data(graph_path)
     
     robots_missions = [
         {"id": "Robot_1", "start_node": "S0", "goal_node": "D4"},
@@ -55,47 +57,28 @@ def run_simulation():
         {"id": "Robot_4", "start_node": "I11", "goal_node": "D0"},
     ]
     
-    shared_timetable = {}
-    all_robot_paths = {}
+    fleet_manager = FleetManager(
+        adjacency_list,
+        node_coordinates,
+        step_cost=1,
+        turn_cost=1,
+        time_cost=1,
+    )
 
-    # 1. Calculate paths for all robots first (First-Come, First-Served)
+    # Calculate and reserve paths in first-come, first-served order.
     for mission in robots_missions:
         robot_id = mission["id"]
-        start_node = mission["start_node"]
-        goal_node = mission["goal_node"]
-
-        # Plan path for the robot using Space-Time A*
-        robot_path = a_star_search(
-            adjacency_list,
-            node_coordinates,
-            start_node=start_node,
-            goal_node=goal_node,
-            step_cost=1,
-            turn_cost=1,
-            timetable=shared_timetable,
+        robot_path = fleet_manager.request_route(
+            robot_id=robot_id,
+            start_node=mission["start_node"],
+            goal_node=mission["goal_node"],
             start_time=0,
-            time_cost=1,
         )
         
         if robot_path:
-            all_robot_paths[robot_id] = robot_path
             print(f"{robot_id} path found:", robot_path)
-            # Book the path into the shared timetable
-            for node, direction, time_val in robot_path:
-                shared_timetable[(node, time_val)] = robot_id
-
-            for current, next_state in zip(robot_path, robot_path[1:]):
-                current_node, _, current_time = current
-                next_node, _, next_time = next_state
-                if current_node == next_node:
-                    continue
-
-                for movement_time in range(current_time, next_time):
-                    shared_timetable[
-                        edge_key(current_node, next_node, movement_time)
-                    ] = robot_id
-        else:
-            print(f"{robot_id} could not find route from {start_node} to {goal_node}.")
+    
+    all_robot_paths = fleet_manager.active_paths
 
     # Check if any valid paths were found
     if not all_robot_paths:
