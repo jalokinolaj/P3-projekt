@@ -35,6 +35,11 @@ def pure_distance(path, adjacency_list):
 
     return distance
 
+
+def edge_key(from_node, to_node, time):
+    return ("edge", from_node, to_node, time)
+
+
 def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_cost, turn_cost, timetable, start_time, time_cost):
     start_state = (start_node, None, start_time)  # (node, direction, time)
     openSet = []
@@ -85,9 +90,20 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
             neighbor_state = (neighbor_node, neighbor_dir)
             neighbor_state = (neighbor_node, neighbor_dir, next_time_move)
 
+            edge_is_blocked = any(
+                timetable_key in timetable
+                for movement_time in range(current_time, next_time_move)
+                for timetable_key in (
+                    edge_key(node_id, neighbor_node, movement_time),
+                    edge_key(neighbor_node, node_id, movement_time),
+                )
+            )
+            if edge_is_blocked:
+                continue  # Prevent same-direction and head-on edge collisions.
+
             if (neighbor_node, next_time_move) in timetable:
                 continue  # Skip this neighbor if it's not available at the next time step
-            tentative_gScore = gScore[current_state] + edge_cost  # Assuming uniform cost for each step
+            tentative_gScore = gScore[current_state] + edge_cost  # Same cost for moving to the neighbor
 
             if current_direction is not None and current_direction != neighbor_dir:
                 tentative_gScore += turn_cost  # Add turn cost if changing direction
