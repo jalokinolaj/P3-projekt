@@ -25,6 +25,10 @@ def build_adjacency_matrix(grid):
                 node_positions.append((r, c))
     num_nodes = len(node_names)
 
+    graph_data = {
+        "node_coordinates": {},
+        "adjacency_list": {}
+    }
 
     adjacency_list = {name: {} for name in node_names}
     adjacency_matrix = np.full((num_nodes, num_nodes), np.inf)  # Initialize with infinity
@@ -37,6 +41,11 @@ def build_adjacency_matrix(grid):
 
     for i, (start_r, start_c) in enumerate(node_positions):
         node_name = node_names[i]
+
+        graph_data["node_coordinates"][node_name] = [start_r, start_c]
+
+        graph_data["adjacency_list"][node_name] = {}
+
         for dr, dc in directions:
 
             direction_name = direction_lookup[(dr, dc)]
@@ -57,13 +66,14 @@ def build_adjacency_matrix(grid):
                     adjacency_matrix[i][j] = distance
                     adjacency_matrix[j][i] = distance
 
-                    adjacency_list[node_name][target_name] = {"cost": distance, "direction": direction_name}
+                    graph_data["adjacency_list"][node_name][target_name] = {"cost": distance, "direction": direction_name}
+
                     break
 
                 r += dr
                 c += dc
                 distance += 1   
-    return node_names, adjacency_matrix, adjacency_list
+    return node_names, adjacency_matrix, graph_data
 
         
 
@@ -72,11 +82,16 @@ def save_adjacency_matrix_to_csv(node_names, adjacency_matrix, filename):
     df_readable = df.map(lambda x: 'inf' if np.isinf(x) else int(x))
     df_readable.to_csv(filename, index=True)
 
-def save_adjacency_list_to_json(adjacency_list, filename):
+def save_adjacency_list_to_json(graph_data, filename):
     with open(filename, 'w') as f:
-        json.dump(adjacency_list, f, indent=4)
+        json.dump(graph_data, f, indent=4)
 
-def load_adjacency_list_from_json(filename):
-    with open(filename, 'r') as f:
-        adjacency_list = json.load(f)
-    return adjacency_list
+def load_graph_data(filename):
+
+    with open(filename, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    adjacency_list = data.get("adjacency_list")
+    node_coordinates = data.get("node_coordinates")
+
+    return adjacency_list, node_coordinates
