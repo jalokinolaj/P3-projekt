@@ -15,7 +15,7 @@ from pathfinding.pathfinding import a_star_search, edge_key
 from pathfinding.graph import load_graph_data
 
 def get_robot_position_at_time(robot_path, node_coordinates, simulation_time):
-    """Return a robot's interpolated plot position at the given simulation time."""
+    """Return a robots plot position at the given simulation time."""
     if simulation_time <= robot_path[0][2]:
         node = robot_path[0][0]
         row, column = node_coordinates[node]
