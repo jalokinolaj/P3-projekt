@@ -5,7 +5,7 @@ import sys
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
-from pathfinding.pathfinding import a_star_search, edge_key
+from pathfinding.pathfinding import a_star_search, edge_key, permanent_node_key
 
 class FleetManager:
     def __init__(self, adjacency_list, node_coordinates, step_cost, turn_cost, time_cost):
@@ -18,7 +18,10 @@ class FleetManager:
         self.active_paths = {}  # Store active paths for each robot
 
     def request_route(self, robot_id, start_node, goal_node, start_time):
-        
+        old_path = self.active_paths.get(robot_id)
+        if old_path is not None:
+            self.remove_reservations(robot_id)
+
         path = a_star_search(
             self.adjacency_list,
             self.node_coordinates,
@@ -32,6 +35,8 @@ class FleetManager:
         )
 
         if path is None:
+            if old_path is not None:
+                self.update_timetable(robot_id, old_path)
             print(f"Robot {robot_id} could not find a path from {start_node} to {goal_node}.")
             return None
 
@@ -51,6 +56,15 @@ class FleetManager:
 
             for movement_time in range(current_time, next_time):
                 self.shared_timetable[edge_key(current_node, next_node, movement_time)] = robot_id
+
+        final_node, _, _ = path[-1]
+        self.shared_timetable[permanent_node_key(final_node)] = robot_id
+
+    def remove_reservations(self, robot_id):
+        """Release all reservations belonging to a robot before replanning."""
+        for key, owner in list(self.shared_timetable.items()):
+            if owner == robot_id:
+                del self.shared_timetable[key]
 
     def reset_timetable(self):
         self.shared_timetable.clear()

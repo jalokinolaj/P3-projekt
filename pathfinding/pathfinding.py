@@ -40,7 +40,24 @@ def edge_key(from_node, to_node, time):
     return ("edge", from_node, to_node, time)
 
 
+def permanent_node_key(node):
+    return ("permanent_node", node)
+
+
+def node_is_occupied(timetable, node, time):
+    """Return whether a node is occupied at a particular time."""
+    return (
+        (node, time) in timetable
+        or permanent_node_key(node) in timetable
+    )
+
+
 def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_cost, turn_cost, timetable, start_time, time_cost):
+    if node_is_occupied(timetable, start_node, start_time):
+        return None
+    if start_node != goal_node and permanent_node_key(goal_node) in timetable:
+        return None
+
     start_state = (start_node, None, start_time)  # (node, direction, time)
     openSet = []
     
@@ -68,7 +85,7 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
         next_time_wait = current_time + time_cost
         wait_state = (node_id, current_direction, next_time_wait)
 
-        if (node_id, next_time_wait) not in timetable:
+        if not node_is_occupied(timetable, node_id, next_time_wait):
             tentative_gScore = gScore[current_state] + time_cost  # Cost for waiting
             if tentative_gScore < gScore.get(wait_state, float('inf')):
                 came_from[wait_state] = current_state
@@ -101,7 +118,7 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
             if edge_is_blocked:
                 continue  # Prevent same-direction and head-on edge collisions.
 
-            if (neighbor_node, next_time_move) in timetable:
+            if node_is_occupied(timetable, neighbor_node, next_time_move):
                 continue  # Skip this neighbor if it's not available at the next time step
             tentative_gScore = gScore[current_state] + edge_cost  # Same cost for moving to the neighbor
 
