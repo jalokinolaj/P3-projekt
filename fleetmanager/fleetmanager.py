@@ -61,7 +61,7 @@ class FleetManager:
         self.shared_timetable[permanent_node_key(final_node)] = robot_id
 
     def remove_reservations(self, robot_id):
-        """Release all reservations belonging to a robot before replanning."""
+        #Remove all reservations made by the robot from the shared timetable, before new path is calculated. To avoid conflicts with old path.
         for key, owner in list(self.shared_timetable.items()):
             if owner == robot_id:
                 del self.shared_timetable[key]
