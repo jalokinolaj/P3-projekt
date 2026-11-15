@@ -33,17 +33,17 @@ class RobotClient:
 
         if "route" in topic:
             path = payload.get("path")
-            print(f"\n[MODTAGET FRA SERVER] Robot {self.robot_id} modtog rute: {path}")
+            print(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} modtog rute: {path}")
 
     def send_status(self, state, node):
-        """Sender robotbens status og aktuelle node til serveren"""
+        """Send the robot's status to the MQTT broker."""
         payload = {
             "robot_id": self.robot_id,
             "state": state,
             "node": node
         }
         self.client.publish(f"fleet/robots/{self.robot_id}/status", json.dumps(payload))
-        print(f"-> Sendt status: state={state}, node={node}")
+        print(f"->Send status: state={state}, node={node}")
 
     def send_apriltag_detection(self, tag_id, node):
         payload = {
@@ -52,7 +52,7 @@ class RobotClient:
             "node": node
         }
         self.client.publish(f"fleet/robots/{self.robot_id}/apriltag", json.dumps(payload))
-        print(f"-> Sendt AprilTag detektering: Tag {tag_id} ({node})")
+        print(f"-> Send AprilTag detection: Tag {tag_id} ({node})")
 
     def connect(self):
         self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
