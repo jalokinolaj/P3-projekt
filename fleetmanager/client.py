@@ -9,10 +9,11 @@ class RobotClient:
     def __init__(self, robot_id):
         self.robot_id = robot_id
         # Bruger VERSION2 for at undgå deprecation warning
-        self.client = mqtt.Client(
+        '''self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"Robot_{robot_id}"
-        )
+        )'''
+        self.client = mqtt.Client(client_id=f"Robot_{robot_id}")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 

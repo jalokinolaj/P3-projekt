@@ -18,7 +18,7 @@ MQTT_PORT = 1883
 class FleetServer:
     def __init__(self):
 
-        json_path=os.path.join(project_root, "data", "adjacency_list.json")
+        json_path=os.path.join(project_root, "adjacency_list.json")
         self.adjacency_list, self.node_coordinates = load_graph_data(json_path)
 
         self.fleet_manager = FleetManager(
@@ -32,7 +32,10 @@ class FleetServer:
         self.current_time = 0  # Initialize current time
         self.robot_nodes = {}
 
-        self.client = mqtt.Client("Server")
+        self.client = mqtt.Client(
+    callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
+    client_id="Server"
+)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
