@@ -35,6 +35,7 @@ class FleetServer:
         self.client = mqtt.Client(
     callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
     client_id="Server"
+    
 )
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
