@@ -2,17 +2,18 @@ import json
 import time
 import paho.mqtt.client as mqtt
 
-MQTT_BROKER = "192.168.1.65"  # Din Windows IP
+MQTT_BROKER = "172.20.10.6"  # Din Windows IP
 MQTT_PORT = 1883
 
 class RobotClient:
     def __init__(self, robot_id):
         self.robot_id = robot_id
         # Bruger VERSION2 for at undgå deprecation warning
-        self.client = mqtt.Client(
+        '''self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"Robot_{robot_id}"
-        )
+        )'''
+        self.client = mqtt.Client(client_id=f"Robot_{robot_id}")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
@@ -33,17 +34,17 @@ class RobotClient:
 
         if "route" in topic:
             path = payload.get("path")
-            print(f"\n[MODTAGET FRA SERVER] Robot {self.robot_id} modtog rute: {path}")
+            print(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} modtog rute: {path}")
 
     def send_status(self, state, node):
-        """Sender robotbens status og aktuelle node til serveren"""
+        """Send the robot's status to the MQTT broker."""
         payload = {
             "robot_id": self.robot_id,
             "state": state,
             "node": node
         }
         self.client.publish(f"fleet/robots/{self.robot_id}/status", json.dumps(payload))
-        print(f"-> Sendt status: state={state}, node={node}")
+        print(f"->Send status: state={state}, node={node}")
 
     def send_apriltag_detection(self, tag_id, node):
         payload = {
@@ -52,7 +53,7 @@ class RobotClient:
             "node": node
         }
         self.client.publish(f"fleet/robots/{self.robot_id}/apriltag", json.dumps(payload))
-        print(f"-> Sendt AprilTag detektering: Tag {tag_id} ({node})")
+        print(f"-> Send AprilTag detection: Tag {tag_id} ({node})")
 
     def connect(self):
         self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
