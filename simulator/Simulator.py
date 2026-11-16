@@ -5,13 +5,14 @@ import sys
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 import time
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.cm as cm
 
-from pathfinding.pathfinding import a_star_search, edge_key
+from fleetmanager.fleetmanager import FleetManager
 from pathfinding.graph import load_graph_data
 
 def get_robot_position_at_time(robot_path, node_coordinates, simulation_time):
@@ -46,56 +47,39 @@ def get_robot_position_at_time(robot_path, node_coordinates, simulation_time):
 
 def run_simulation():
     # Load graph data
-    adjacency_list, node_coordinates = load_graph_data("adjacency_list.json")
+    graph_path = os.path.join(PROJECT_ROOT, "adjacency_list.json")
+    adjacency_list, node_coordinates = load_graph_data(graph_path)
     
+    # Stress scenario: Robot_1 uses I0 at t=5 on its shortest route.
+    # Robot_2 would normally use I1 -> I0 -> I8 -> D1, but must take a
+    # longer detour because I0 is reserved by Robot_1 at that time.
     robots_missions = [
-        {"id": "Robot_1", "start_node": "S0", "goal_node": "D4"},
-        {"id": "Robot_2", "start_node": "S1", "goal_node": "D3"},
-        {"id": "Robot_3", "start_node": "I3", "goal_node": "D2"},
-        {"id": "Robot_4", "start_node": "I11", "goal_node": "D0"},
+        {"id": "Robot_1", "start_node": "S0", "goal_node": "D3"},
+        {"id": "Robot_2", "start_node": "I1", "goal_node": "D1"},
     ]
     
-    shared_timetable = {}
-    all_robot_paths = {}
+    fleet_manager = FleetManager(
+        adjacency_list,
+        node_coordinates,
+        step_cost=1,
+        turn_cost=1,
+        time_cost=1,
+    )
 
-    # 1. Calculate paths for all robots first (First-Come, First-Served)
+    # Calculate and reserve paths in first-come, first-served order.
     for mission in robots_missions:
         robot_id = mission["id"]
-        start_node = mission["start_node"]
-        goal_node = mission["goal_node"]
-
-        # Plan path for the robot using Space-Time A*
-        robot_path = a_star_search(
-            adjacency_list,
-            node_coordinates,
-            start_node=start_node,
-            goal_node=goal_node,
-            step_cost=1,
-            turn_cost=1,
-            timetable=shared_timetable,
+        robot_path = fleet_manager.request_route(
+            robot_id=robot_id,
+            start_node=mission["start_node"],
+            goal_node=mission["goal_node"],
             start_time=0,
-            time_cost=1,
         )
         
         if robot_path:
-            all_robot_paths[robot_id] = robot_path
             print(f"{robot_id} path found:", robot_path)
-            # Book the path into the shared timetable
-            for node, direction, time_val in robot_path:
-                shared_timetable[(node, time_val)] = robot_id
-
-            for current, next_state in zip(robot_path, robot_path[1:]):
-                current_node, _, current_time = current
-                next_node, _, next_time = next_state
-                if current_node == next_node:
-                    continue
-
-                for movement_time in range(current_time, next_time):
-                    shared_timetable[
-                        edge_key(current_node, next_node, movement_time)
-                    ] = robot_id
-        else:
-            print(f"{robot_id} could not find route from {start_node} to {goal_node}.")
+    
+    all_robot_paths = fleet_manager.active_paths
 
     # Check if any valid paths were found
     if not all_robot_paths:
@@ -126,41 +110,74 @@ def run_simulation():
     colors = cm.rainbow(np.linspace(0, 1, len(all_robot_paths)))
     robot_colors = {robot_id: colors[i] for i, robot_id in enumerate(all_robot_paths.keys())}
 
-    frame_interval = 1 / 30
+    frame_interval = 1 / 60
     simulation_start = time.monotonic()
     simulation_time = 0.0
 
-    # Run the animation in real time, rendering intermediate positions.
+    # Draw static content once. Reusing these artists avoids flicker caused by
+    # clearing and rebuilding the entire axes on every frame.
+    ax.set_xlim(min(x_vals) - 0.5, max(x_vals) + 0.5)
+    ax.set_ylim(min(y_vals) - 0.5, max(y_vals) + 0.5)
+    ax.grid(True, alpha=0.25)
+    ax.set_axisbelow(True)
+
+    for n, coords in node_coordinates.items():
+        y, x = coords
+        ax.scatter(x, y, color="lightgray", s=300, zorder=1)
+        ax.text(x, y + 0.3, n, fontsize=10, ha="center", zorder=2)
+
+    robot_artists = {}
+    for robot_id, robot_path in all_robot_paths.items():
+        x, y = get_robot_position_at_time(
+            robot_path,
+            node_coordinates,
+            simulation_time,
+        )
+        color = robot_colors[robot_id]
+        robot_artist = ax.scatter(
+            [x],
+            [y],
+            color=color,
+            s=700,
+            label=robot_id,
+            edgecolors="black",
+            linewidths=1.5,
+            zorder=3,
+        )
+        robot_label = ax.text(
+            x,
+            y - 0.15,
+            robot_id.replace("Robot_", "R"),
+            color="white",
+            fontweight="bold",
+            ha="center",
+            va="center",
+            fontsize=8,
+            zorder=4,
+        )
+        robot_artists[robot_id] = (robot_artist, robot_label)
+
+    title = ax.set_title("Robot Simulation at Time Step: 0.0s")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    fig.canvas.draw()
+
+    # Run the animation in real time, updating only robot positions.
     while simulation_time <= max_time:
-        ax.clear()
-        
-        # Set dynamic plot limits based on node coordinates with padding
-        ax.set_xlim(min(x_vals) - 0.5, max(x_vals) + 0.5)
-        ax.set_ylim(min(y_vals) - 0.5, max(y_vals) + 0.5)
-        
-        ax.grid(True)
-        ax.set_title(f"Robot Simulation at Time Step: {simulation_time:.1f}s")
+        title.set_text(f"Robot Simulation at Time Step: {simulation_time:.1f}s")
 
-        # Draw warehouse nodes
-        for n, coords in node_coordinates.items():
-            y, x = coords
-            ax.scatter(x, y, color='lightgray', s=300)
-            ax.text(x, y + 0.3, n, fontsize=10, ha='center')
-
-        # Draw robots at the current time step 't'
         for robot_id, robot_path in all_robot_paths.items():
             x, y = get_robot_position_at_time(
                 robot_path,
                 node_coordinates,
                 simulation_time,
             )
-            color = robot_colors[robot_id]
+            robot_artist, robot_label = robot_artists[robot_id]
+            robot_artist.set_offsets([[x, y]])
+            robot_label.set_position((x, y - 0.15))
 
-            ax.scatter(x, y, color=color, s=700, label=robot_id, edgecolors='black')
-            ax.text(x, y - 0.15, robot_id.replace("Robot_", "R"), color='white', fontweight='bold', ha='center', fontsize=8)
-
-        ax.legend(loc='upper right')
-        plt.draw()
+        fig.canvas.draw_idle()
+        fig.canvas.flush_events()
         plt.pause(frame_interval)
         simulation_time = time.monotonic() - simulation_start
 
