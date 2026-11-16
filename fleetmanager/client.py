@@ -2,7 +2,7 @@ import json
 import time
 import paho.mqtt.client as mqtt
 
-MQTT_BROKER = "192.168.1.65"  # Din Windows IP
+MQTT_BROKER = "172.20.10.6"  # Din Windows IP
 MQTT_PORT = 1883
 
 class RobotClient:
