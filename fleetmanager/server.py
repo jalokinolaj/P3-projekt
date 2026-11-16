@@ -32,7 +32,10 @@ class FleetServer:
         self.current_time = 0  # Initialize current time
         self.robot_nodes = {}
 
-        self.client = mqtt.Client("Server")
+        self.client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
+            client_id="Server"
+        )
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
@@ -97,6 +100,7 @@ class FleetServer:
             while True:
                 time.sleep(1)
                 self.current_time += 1
+                self.fleet_manager.cleanup_past_reservations(self.current_time)
                 print(f"Current time: {self.current_time}")
         except KeyboardInterrupt:
             print("Shutting down...")

@@ -69,3 +69,21 @@ class FleetManager:
     def reset_timetable(self):
         self.shared_timetable.clear()
         self.active_paths.clear()
+
+    def cleanup_past_reservations(self, current_time):
+        # Remove reservations that are in the past
+        for key in list(self.shared_timetable.keys()):
+            if isinstance(key, tuple) and len(key) == 2:
+                node, time_val = key
+                try:
+                    time_val = int(time_val)
+                    if time_val < current_time:
+                        del self.shared_timetable[key]
+                except (ValueError, TypeError):
+                    continue
+                
+            elif isinstance(key, str) and key.startswith("edge_"):
+                _, node1, node2, time = key.split("_")
+                time = int(time)
+                if time < current_time:
+                    del self.shared_timetable[key]
