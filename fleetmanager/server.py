@@ -3,7 +3,7 @@ import sys
 import json
 import time
 import paho.mqtt.client as mqtt
-
+from collections import defaultdict, deque
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -11,8 +11,11 @@ sys.path.append(project_root)
 from pathfinding.graph import load_graph_data
 from fleetmanager.fleetmanager import FleetManager
 
+
 MQTT_BROKER = "localhost"#Change this to server IP address if running on a different machine
 MQTT_PORT = 1883
+
+SCAN_TIMEOUT = 3.5
 
 
 class FleetServer:
@@ -31,6 +34,12 @@ class FleetServer:
 
         self.current_time = 0  # Initialize current time
         self.robot_nodes = {}
+
+        self.robot_states = {}
+        self.robot_queues = defaultdict(deque)
+
+
+
 
         self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
@@ -63,17 +72,46 @@ class FleetServer:
             if node is not None:
                 self.robot_nodes[robot_id] = node
             print(f"Received status from robot {robot_id}: state={state}, node={node}")
+            self.robot_states[robot_id] = state
+
+            if state == "IDLE":
+                print(f"Robot {robot_id} is IDLE. Processing next in queue.")
+                self.process_next_in_queue(robot_id)
+            else:
+                print(f"Robot {robot_id} is {state}. Not processing queue.")
+
+
         elif "apriltag" in topic:
-            tag_id = payload.get("tag_id")
-            print(f"Received AprilTag detection from robot {robot_id}: tag_id={tag_id}")
-            start_node = self.robot_nodes.get(robot_id)
-            if tag_id is None or start_node is None:
-                print(
-                    f"Cannot assign route for robot {robot_id}: "
-                    "AprilTag destination or current status node is missing."
-                )
+            goal_node = payload.get("goal_node")
+            print(f"Received AprilTag detection from robot {robot_id}: goal_node={goal_node}")
+
+            if goal_node is None:
                 return
-            self.assign_route(robot_id, start_node, tag_id)
+            current_state = self.robot_states.get(robot_id, "IDLE")
+            start_node = self.robot_nodes.get(robot_id)
+
+            if goal_node == "START_NODE_TRIGGER":
+                print(f"Robot {robot_id} is IDLE and received START_NODE_TRIGGER. Processing next in queue.")
+                self.process_next_in_queue(robot_id)
+                return
+                
+            self.robot_queues[robot_id].append(goal_node)
+            print(f"Robot {robot_id} is IDLE. Added goal_node {goal_node} to its queue.")
+
+
+
+    def process_next_in_queue(self, robot_id):
+        if self.robot_queues[robot_id]:
+            self.fleet_manager.cleanup_past_reservations(self.current_time)
+            
+            next_goal_node = self.robot_queues[robot_id].popleft()
+            start_node = self.robot_nodes.get(robot_id)
+            if start_node is not None:
+                self.assign_route(robot_id, start_node, next_goal_node)
+            else:
+                print(f"Cannot assign route for robot {robot_id} because its current node is unknown.")
+        else:
+            print(f"No queued goal nodes for robot {robot_id}.")
 
     def assign_route(self, robot_id, start_node, goal_node):
 
