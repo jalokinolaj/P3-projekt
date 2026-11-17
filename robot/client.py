@@ -36,9 +36,10 @@ class RobotClient:
         try:
             while not self.stop_event.is_set():
                 current_tag = self.vision.get_latest_tag()
-                print(f"Tag: {current_tag}")
+                
 
                 if current_tag is not None:
+                    
                     if current_tag != self.last_sent_tag:  # Only send if the tag is different from the last sent
                         node = TAG_TO_NODE.get(str(current_tag))
                         print(f"Valid tag received: {current_tag} node: {node}")
@@ -49,11 +50,12 @@ class RobotClient:
 
                         else:
                             logging.warning(f"Robot {self.robot_id} detected unknown AprilTag ID: {current_tag}")
-                            self.last_sent_tag = current_tag # Mark as sent to avoid re-sending
+                            
+                        self.last_sent_tag = current_tag # Mark as sent to avoid re-sending
 
                 else:
                     logging.info(f"Robot {self.robot_id} did not detect any AprilTag.")
-                    self.last_sent_tag = None  # Reset if no tag is detected
+                    pass
 
                 time.sleep(0.1)  # Prevent busy waiting
         finally:
