@@ -35,9 +35,20 @@ class RobotClient:
         try:
             while not self.stop_event.is_set():
                 current_tag = self.vision.get_latest_tag()
+                print(f"Tag: {current_tag}")
 
-                if current_tag is not None and current_tag != self.last_sent_tag:
-                    node = TAG_TO_NODE.get(current_tag)
+                if current_tag is not None
+                    node = TAG_TO_NODE.get(str(current_tag))
+                    print(f"Valid tag recieved: {current_tag} node: {node}")
+                    payload = {
+                        "robot_id": self.robot_id,
+                        "tag_id": current_tag,
+                        "node": node,
+                        "state"
+                              
+                              
+                              
+                    }
 
 
                     if node is not None:

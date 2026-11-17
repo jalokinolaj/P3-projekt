@@ -1,4 +1,4 @@
-MQTT_BROKER = "Change this to your Windows IP"  # Din Windows IP
+MQTT_BROKER = "192.168.1.65"  # Din Windows IP
 MQTT_PORT = 1883
 
 TAG_TO_NODE = {

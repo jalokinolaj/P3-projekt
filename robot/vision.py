@@ -37,7 +37,7 @@ class VisionSystem:
         while self.running:
             frame = self.camera.value
 
-            if frame is not None:
+            if frame is None:
                 time.sleep(0.05)   # Add a small delay to reduce CPU usage
                 continue
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
