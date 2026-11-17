@@ -16,6 +16,7 @@ class RobotClient:
         self.current_route = []
         self.current_node = "S0"
         self.stop_event = threading.Event()
+        self.last_sent_tag = None  # Track the last sent AprilTag to avoid duplicates
 
 
         self.vision = VisionSystem()
@@ -37,28 +38,21 @@ class RobotClient:
                 current_tag = self.vision.get_latest_tag()
                 print(f"Tag: {current_tag}")
 
-                if current_tag is not None
-                    node = TAG_TO_NODE.get(str(current_tag))
-                    print(f"Valid tag recieved: {current_tag} node: {node}")
-                    payload = {
-                        "robot_id": self.robot_id,
-                        "tag_id": current_tag,
-                        "node": node,
-                        "state"
-                              
-                              
-                              
-                    }
+                if current_tag is not None:
+                    if current_tag != self.last_sent_tag:  # Only send if the tag is different from the last sent
+                        node = TAG_TO_NODE.get(str(current_tag))
+                        print(f"Valid tag received: {current_tag} node: {node}")
 
+                        if node is not None:
+                            logging.info(f"Robot {self.robot_id} detected AprilTag ID: {current_tag}, sending to server.")
+                            self.send_destination(node=node)
 
-                    if node is not None:
-                        self.send_apriltag_detection(tag_id=current_tag, node=node)
-                        self.last_sent_tag = current_tag
-                    else:
-                        logging.warning(f"Robot {self.robot_id} detected unknown AprilTag ID: {current_tag}")
-                        self.last_sent_tag = current_tag # Mark as sent to avoid re-sending
+                        else:
+                            logging.warning(f"Robot {self.robot_id} detected unknown AprilTag ID: {current_tag}")
+                            self.last_sent_tag = current_tag # Mark as sent to avoid re-sending
 
-                elif current_tag is None:
+                else:
+                    logging.info(f"Robot {self.robot_id} did not detect any AprilTag.")
                     self.last_sent_tag = None  # Reset if no tag is detected
 
                 time.sleep(0.1)  # Prevent busy waiting
@@ -105,19 +99,20 @@ class RobotClient:
         self.client.publish(f"fleet/robots/{self.robot_id}/status", json.dumps(payload))
         logging.info(f"->Send status: state={state}, node={node}")
 
-    def send_apriltag_detection(self, tag_id, node):
+    def send_destination(self, node):
         payload = {
             "robot_id": self.robot_id,
-            "tag_id": tag_id,
-            "node": node
+            "goal_node": node
         }
         self.client.publish(f"fleet/robots/{self.robot_id}/apriltag", json.dumps(payload))
-        print(f"-> Send AprilTag detection: Tag {tag_id} ({node})")
+        print(f"-> Send AprilTag detection: Tag ({node})")
+        logging.info(f"Robot {self.robot_id} sent destination: {node}")
 
     def connect(self):
         self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
         self.client.loop_start()
         self.vision.start()
+        logging.info(f"Robot {self.robot_id} connected to the MQTT broker.")
 
     def disconnect(self):
         self.vision.stop()
