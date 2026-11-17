@@ -18,7 +18,7 @@ MQTT_PORT = 1883
 class FleetServer:
     def __init__(self):
 
-        json_path=os.path.join(project_root, "adjacency_list.json")
+        json_path=os.path.join(project_root,"data", "adjacency_list.json")
         self.adjacency_list, self.node_coordinates = load_graph_data(json_path)
 
         self.fleet_manager = FleetManager(
