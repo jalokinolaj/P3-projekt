@@ -1,4 +1,4 @@
-from jetbot import robot
+from jetbot import Robot
 from robot.utils import get_voltage
 import time
 
@@ -6,7 +6,7 @@ import time
 
 class RobotMotion:
     def __init__(self):
-        self.robot = robot
+        self.robot = Robot()
         self.standard_voltage = 12.6  # Standard voltage for a fully charged battery
 
     def voltage_compensation_multiplier(self):
