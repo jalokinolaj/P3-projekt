@@ -4,10 +4,13 @@ import signal
 import time
 import paho.mqtt.client as mqtt
 import threading
+from pathlib import Path
 
 from robot.motion import RobotMotion
 from robot.vision import VisionSystem
 from robot.utils import get_voltage
+from robot.navigation import RobotNavigation
+from pathfinding.graph import load_graph_data
 from config import *
 
 
@@ -20,9 +23,17 @@ class RobotClient:
         self.stop_event = threading.Event()
         self.last_sent_tag = None  # Track the last sent AprilTag to avoid duplicates
         self.last_sent_node = None  # Track the last sent node to avoid duplicates
-        self.motion = RobotMotion()
-
+        self.motion = RobotMotion(floor="woodenfloor")
         self.vision = VisionSystem()
+        graph_file = Path(__file__).resolve().parent.parent / "data" / "adjacency_list.json"
+        adjacency_list, _ = load_graph_data(graph_file)
+        self.navigation = RobotNavigation(
+            robot_id,
+            self.vision,
+            self.motion,
+            adjacency_list=adjacency_list,
+            on_node_arrived=self.on_node_arrived,
+        )
         self.voltage = get_voltage()
         # Bruger VERSION2 for at undgå deprecation warning
         '''self.client = mqtt.Client(
@@ -83,17 +94,38 @@ class RobotClient:
             return
         if "route" in topic:
             path = payload.get("path")
-            logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} modtog rute: {path}")
-            if self.current_route:
-                self.state = "MOVING"
+            logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} received route: {path}")
+
+            if self.navigation.current_route is not None:
                 logging.info(f"Robot {self.robot_id} is currently moving. New route will be queued.")
+                self.navigation.current_queue.append(path)
+            else:
+                self.navigation.current_route = path
+                self.current_state = "MOVING"
+                self.current_heading = "NORTH"  # Set the initial heading
+                logging.info(f"Robot {self.robot_id} is currently moving. New route will be queued.")
+                self.send_status(state="MOVING", node=self.current_node)
+                navigate_thread = threading.Thread(
+                    target=self.navigation.navigate_route,
+                    args=(path,),
+                )
+                navigate_thread.start()
+                
+            
         
 
         elif "command" in topic and payload.get("action") == "SHUTDOWN":
             logging.info(f"Robot {self.robot_id} is shutting down.")
-            logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} modtog shutdown kommando.")
+            logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} received shutdown command.")
             self.stop_event.set()
             logging.info(f"Robot {self.robot_id} is shutting down.")
+
+    def on_node_arrived(self, node, is_goal=False):
+        """Publish updated robot state after arriving at a route node."""
+        self.current_node = node
+        state = "IDLE" if is_goal else "MOVING"
+        self.state = state
+        self.send_status(state=state, node=node)
 
     def send_status(self, state, node):
         """Send the robot's status to the MQTT broker."""

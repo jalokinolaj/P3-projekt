@@ -1,10 +1,13 @@
 import time
 
 from robot.motion import RobotMotion
-def turntest():
 
-    
-    robot = RobotMotion()
+
+FLOOR_PROFILE = "woodenfloor"
+
+
+def turntest():
+    robot = RobotMotion(floor=FLOOR_PROFILE)
     times = int(input("Enter how many times to turn 90 degrees left: "))
     time.sleep(1)
 
@@ -14,7 +17,7 @@ def turntest():
 
 def run_square_test():
     print("square test")
-    motion = RobotMotion()
+    motion = RobotMotion(floor=FLOOR_PROFILE)
     
     for i in range(1, 5):
         motion.move_forward(duration=2)
@@ -26,11 +29,11 @@ def run_square_test():
         time.sleep(0.5)
         
 def run_forward():
-    motion = RobotMotion()
-    motion.move_forward( duration=4)
+    motion = RobotMotion(floor=FLOOR_PROFILE)
+    motion.move_forward(duration=4)
         
 if __name__ == "__main__":
-    choise = int(input("1 for turntest, 2 for square test\n"))
+    choise = int(input("1 for turntest, 2 for square test, 3 for forward test\n"))
     
     if choise == 1:
         turntest()
