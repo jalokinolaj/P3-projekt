@@ -99,11 +99,11 @@ def calibrate_straight_profile(profile):
     change = 1.0 - (drift_cm / distance_cm)
     change = max(0.80, min(1.20, change))
     if drift_side == "left":
-        # A left drift is corrected by reducing the left motor's correction.
-        profile["left_correction"] = round(max(0.5, min(1.5, float(profile.get("left_correction", 1.0)) / change)), 4)
+        # A left drift means the right motor is stronger, so reduce right correction.
+        profile["right_correction"] = round(max(0.5, min(1.5, float(profile.get("right_correction", 1.0)) * change)), 4)
     else:
-        # A right drift is corrected by reducing the right motor's correction.
-        profile["right_correction"] = round(max(0.5, min(1.5, float(profile.get("right_correction", 1.0)) / change)), 4)
+        # A right drift means the left motor is stronger, so reduce left correction.
+        profile["left_correction"] = round(max(0.5, min(1.5, float(profile.get("left_correction", 1.0)) * change)), 4)
     print("Updated correction:", profile["left_correction"], profile["right_correction"])
 
 
