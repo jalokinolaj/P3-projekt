@@ -5,8 +5,9 @@ import time
 import paho.mqtt.client as mqtt
 import threading
 
+from robot.motion import RobotMotion
 from robot.vision import VisionSystem
-from robot.utils import
+from robot.utils import get_voltage
 from config import *
 
 
@@ -18,9 +19,11 @@ class RobotClient:
         self.current_node = "S0"
         self.stop_event = threading.Event()
         self.last_sent_tag = None  # Track the last sent AprilTag to avoid duplicates
-
+        self.last_sent_node = None  # Track the last sent node to avoid duplicates
+        self.motion = RobotMotion()
 
         self.vision = VisionSystem()
+        self.voltage = get_voltage()
         # Bruger VERSION2 for at undgå deprecation warning
         '''self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -97,10 +100,11 @@ class RobotClient:
         payload = {
             "robot_id": self.robot_id,
             "state": state,
-            "node": node
+            "node": node,
+            "battery_voltage": round(self.voltage, 2)  # Include battery voltage in the status message
         }
         self.client.publish(f"fleet/robots/{self.robot_id}/status", json.dumps(payload))
-        logging.info(f"->Send status: state={state}, node={node}")
+        logging.info(f"->Send status: state={state}, node={node}, battery_voltage={round(self.voltage, 2)}")
 
     def send_destination(self, node):
         payload = {

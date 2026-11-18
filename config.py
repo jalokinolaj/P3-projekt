@@ -12,5 +12,6 @@ TAG_TO_NODE = {
     "7": "D7",
     "8": "D8",
     "9": "D9",
+    "10": "D10",
     "60": "START_NODE_TRIGGER"
 }
