@@ -3,7 +3,6 @@ import logging
 import threading
 from typing import TYPE_CHECKING
 from robot.vision import VisionSystem
-from robot.client import RobotClient
 
 if TYPE_CHECKING:
     from robot.motion import RobotMotion
@@ -132,11 +131,11 @@ class RobotNavigation:
                         self.motion.robot.stop()
                         logging.info(f"Robot {self.robot_id} detected an intersection. Stopping.")
                         break
-                    elif abs(difference) < TOLERANCE_MM:
+                    elif abs(difference) > TOLERANCE_MM:
                         if left_distance < right_distance:
-                            self.motion.nodge_left(CORRECTION_STEP)
+                            self.motion.nudge_left(CORRECTION_STEP)
                         else:
-                            self.motion.nodge_right(CORRECTION_STEP)
+                            self.motion.nudge_right(CORRECTION_STEP)
                     logging.info(f"Robot {self.robot_id} arrived at a node. Stopping.")
                     break
 
