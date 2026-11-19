@@ -1,3 +1,4 @@
+ROBOT_ID = "jetbot_1"
 MQTT_BROKER = "192.168.1.65"  # Din Windows IP
 MQTT_PORT = 1883
 

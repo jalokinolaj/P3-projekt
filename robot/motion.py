@@ -1,5 +1,6 @@
 from jetbot import Robot
 from robot.utils import get_voltage
+from data.calibration_data import *
 import time
 import json
 from pathlib import Path
@@ -7,40 +8,24 @@ from pathlib import Path
 
 
 class RobotMotion:
-    def __init__(self, floor="default", calibration_path=None):
+    def __init__(self, robot_id="default"):
+        self.robot_id = robot_id
         self.robot = Robot()
-        self.calibration_path = (
-            Path(calibration_path)
-            if calibration_path
-            else Path(__file__).with_name("motion_calibration.json")
-        )
-        self.floor = floor
-        self.standard_voltage = 11.796
-        self.left_correction = 1.0
-        self.right_correction = 1.0
-        self.left_turn_duration = 0.30
-        self.right_turn_duration = 0.21
-        self.load_calibration(floor)
+        self.standard_voltage = STANDARD_VOLTAGE
+        
+        
+        self.cal = get_robot_calibration(self.robot_id)
+        
+        self.robot.left_motor.alpha = self.cal.get("left_motor_alpha", 1.0)
+        self.robot.right_motor.alpha = self.cal.get("right_motor_alpha", 1.0)
+        self.robot.left_motor.beta = self.cal.get("left_motor_beta", 0.0)
+        self.robot.right_motor.beta = self.cal.get("right_motor_beta", 0.0)
+        self.turn_left_speed = self.cal.get("turn_left_speed", 0.3)
+        self.turn_left_duration = self.cal.get("turn_left_duration", 0.25)
+        self.turn_right_speed = self.cal.get("turn_right_speed", 0.3)
+        self.turn_right_duration = self.cal.get("turn_right_duration", 0.25)
 
-    def load_calibration(self, floor=None):
-        if floor is not None:
-            self.floor = floor
-
-        try:
-            with self.calibration_path.open("r", encoding="utf-8") as calibration_file:
-                profiles = json.load(calibration_file)
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            profiles = {}
-
-        profile = profiles.get(self.floor, profiles.get("default", {}))
-        self.standard_voltage = float(profile.get("standard_voltage", 11.796))
-        self.left_correction = float(profile.get("left_correction", 1.0))
-        self.right_correction = float(profile.get("right_correction", 0.885))
-        self.left_turn_duration = float(profile.get("left_turn_duration", 0.30))
-        self.right_turn_duration = float(profile.get("right_turn_duration", 0.21))
-
-    def set_floor(self, floor):
-        self.load_calibration(floor)
+       
 
     def voltage_compensation_multiplier(self):
         current_voltage = get_voltage()
@@ -59,48 +44,40 @@ class RobotMotion:
         self.robot.stop()
 
     def move_forward(self, speed=0.2, duration=1.0):
-        left_speed = speed * self.left_correction
-        right_speed = speed * self.right_correction
-        self.robot.set_motors(left_speed, right_speed)
+        self.robot.set_motors(speed, speed)
         time.sleep(duration)
-        self.smooth_stop(left_speed, right_speed)
+        self.smooth_stop(speed, speed)
 
-    def move_backward(self, speed=0.5, duration=1.0):
-        left_speed = -speed * self.left_correction
-        right_speed = -speed * self.right_correction
-        self.robot.set_motors(left_speed, right_speed)
+    def move_backward(self, speed=0.2, duration=1.0):
+        self.robot.set_motors(-speed, -speed)
         time.sleep(duration)
-        self.smooth_stop(left_speed, right_speed)
+        self.smooth_stop(-speed, -speed)
 
-    def turn_90_left(self, speed=0.3, duration=None):
+    def turn_90_left(self):
         multiplier = self.voltage_compensation_multiplier()
-        if duration is None:
-            duration = self.left_turn_duration
-        adjusted_duration = duration * multiplier
+        adjusted_duration = self.turn_left_duration * multiplier
 
-        left_speed = -speed
-        right_speed = speed
+        left_speed = -self.turn_left_speed
+        right_speed = self.turn_left_speed
         self.robot.set_motors(left_speed, right_speed)
         time.sleep(adjusted_duration)
         self.robot.stop()
 
-    def turn_90_right(self, speed=0.3, duration=None):
+    def turn_90_right(self):
         multiplier = self.voltage_compensation_multiplier()
-        if duration is None:
-            duration = self.right_turn_duration
-        adjusted_duration = duration * multiplier
-        left_speed = speed
-        right_speed = -speed
+        adjusted_duration = self.turn_right_duration * multiplier
+        left_speed = self.turn_right_speed
+        right_speed = -self.turn_right_speed
         self.robot.set_motors(left_speed, right_speed)
         time.sleep(adjusted_duration)
         self.robot.stop()
 
-    def nudge_left(self, speed=0.2, duration=0.5):
+    def nudge_left(self, speed=0.2, duration=0.08):
         self.robot.set_motors(-speed, speed)
         time.sleep(duration)
         self.robot.stop()
 
-    def nudge_right(self, speed=0.2, duration=0.5):
+    def nudge_right(self, speed=0.2, duration=0.08):
         self.robot.set_motors(speed, -speed)
         time.sleep(duration)
         self.robot.stop()
