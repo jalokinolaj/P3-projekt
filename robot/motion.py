@@ -41,6 +41,9 @@ class RobotMotion:
             time.sleep(delay)
         self.robot.stop()
 
+    def stop(self):
+        self.robot.stop()
+
     def move_forward(self, speed=0.2):
         self.robot.set_motors(speed, speed)
 

@@ -23,7 +23,7 @@ class RobotNavigation:
         self.robot_id = robot_id
         self.vision = vision_system
         self.motion = robot_motion
-    
+
         self.on_node_arrived = on_node_arrived
         self.on_error = on_error
         self.current_route = None
@@ -87,7 +87,7 @@ class RobotNavigation:
         self.current_route = None
         self.current_state = "IDLE"
 
-        
+
 
 
     def turn_to_direction(self, current_direction, target_direction):
