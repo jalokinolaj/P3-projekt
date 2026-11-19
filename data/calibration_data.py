@@ -9,7 +9,7 @@ ROBOT_CALIBRATIONS = {
         "turn_left_speed": 0.3,
         "turn_right_duration": 0.233,
         "turn_right_speed": 0.3,
-        "standard_voltage" 12.0
+        "standard_voltage": 12.0
     },
     #Works alright tested on 1 meter little error near end(black)
     "jetbot_1": {
@@ -21,7 +21,7 @@ ROBOT_CALIBRATIONS = {
         "turn_left_speed": 0.3,
         "turn_right_duration": 0.233,
         "turn_right_speed": 0.3,
-        "standard_voltage" 12.0
+        "standard_voltage": 12.0
     },
     
     
