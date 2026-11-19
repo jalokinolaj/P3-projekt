@@ -11,10 +11,8 @@ class RobotMotion:
     def __init__(self, robot_id="default"):
         self.robot_id = robot_id
         self.robot = Robot()
-        self.standard_voltage = STANDARD_VOLTAGE
-        
-        
         self.cal = get_robot_calibration(self.robot_id)
+        self.standard_voltage = self.cal["standard_voltage"]
         
         self.robot.left_motor.alpha = self.cal.get("left_motor_alpha", 1.0)
         self.robot.right_motor.alpha = self.cal.get("right_motor_alpha", 1.0)
@@ -43,15 +41,11 @@ class RobotMotion:
             time.sleep(delay)
         self.robot.stop()
 
-    def move_forward(self, speed=0.2, duration=1.0):
+    def move_forward(self, speed=0.2):
         self.robot.set_motors(speed, speed)
-        time.sleep(duration)
-        self.smooth_stop(speed, speed)
 
-    def move_backward(self, speed=0.2, duration=1.0):
+    def move_backward(self, speed=0.2):
         self.robot.set_motors(-speed, -speed)
-        time.sleep(duration)
-        self.smooth_stop(-speed, -speed)
 
     def turn_90_left(self):
         multiplier = self.voltage_compensation_multiplier()

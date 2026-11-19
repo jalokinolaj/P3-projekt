@@ -1,6 +1,5 @@
 import time
 import logging
-import threading
 from typing import TYPE_CHECKING
 from robot.vision import VisionSystem
 
@@ -8,70 +7,88 @@ if TYPE_CHECKING:
     from robot.motion import RobotMotion
 
 class RobotNavigation:
+    GRACEPERIODDELAY = 3.0  # Grace period in seconds before notifying a delay
+    OPEN_DISTANCE_THRESHOLD = 400  # Distance threshold in millimeters to consider a side as open
+    HARD_TIMEOUT_FACTOR = 3  # Factor to multiply the estimated duration for hard timeout
+    DRIVE_SPEED = 0.2  # Default drive speed for the robot
+    DEFAULT_STEP_SECONDS = 1.0  # Default duration for each step in seconds
     def __init__(
         self,
         robot_id,
         vision_system: VisionSystem,
         robot_motion: "RobotMotion",
-        adjacency_list=None,
-        seconds_per_grid_unit=1.0,
         on_node_arrived=None,
+        on_error=None,
     ):
         self.robot_id = robot_id
         self.vision = vision_system
         self.motion = robot_motion
-        self.adjacency_list = adjacency_list or {}
-        self.seconds_per_grid_unit = seconds_per_grid_unit
+    
         self.on_node_arrived = on_node_arrived
+        self.on_error = on_error
         self.current_route = None
         self.current_queue = []
+        self.pending_routes = []
         self.current_state = "IDLE"  # Track the robot's current state: "IDLE", "MOVING", or "QUEUED"
         self.current_direction = "NORTH"  # Track the robot's current direction: "NORTH", "EAST", "SOUTH", or "WEST"
         self.current_node = None
+        self.goal_node = None  # Track the goal node for the current route
 
     def navigate_route(self, path):
         """Navigate the robot along the specified path."""
         self.current_route = path
         if not path:
+            self.current_route = None
             self.current_state = "IDLE"
             return
 
         self.current_state = "MOVING"
         self.current_queue = list(path)
+        goal_node = path[-1][0]
+        self.goal_node = goal_node
+        prev_eta = None
 
-        try:
-            for index in range(len(path) - 1):
-                current_state = path[index]
-                next_state = path[index + 1]
-                current_node = current_state[0]
-                next_node = next_state[0]
+        while self.current_queue:
+            step = self.current_queue.pop(0)
+            next_node, target_direction, next_eta = step
+            if next_node is None:
+                logging.warning(f"Robot {self.robot_id} has no next node to navigate to.")
+                continue
 
-                if current_node == next_node:
-                    continue
+            if target_direction is None and next_eta == 0 and prev_eta is None:
+                self.current_node = next_node
+                prev_eta = next_eta
+                continue
 
-                edge_data = self.adjacency_list.get(current_node, {}).get(next_node)
-                if edge_data is None:
-                    logging.error(
-                        "Robot %s: no edge from %s to %s",
-                        self.robot_id,
-                        current_node,
-                        next_node,
-                    )
+            if target_direction:
+                self.turn_to_direction(self.current_direction, target_direction)
+            duration_estimate = self.DEFAULT_STEP_SECONDS
+            if prev_eta is not None and next_eta is not None:
+                duration_estimate = max(0, next_eta - prev_eta)
+
+            is_final_goal = len(self.current_queue) == 0
+            if is_final_goal:
+                found = self.drive_forward_until_goaltag(duration_estimate=duration_estimate)
+                if not found:
+                    self.handle_navigation_error(next_node)
                     return
+                self.notify_node_arrived(next_node, is_goal=True)
+                prev_eta = next_eta
+            else:
+                found = self.drive_forward_until_intersection_node(next_node=next_node, duration_estimate=duration_estimate)
+                if not found:
+                    self.handle_navigation_error(next_node)
+                    return
+                self.current_node = next_node
+                prev_eta = next_eta
+                self.notify_node_arrived(next_node)
+                
 
-                target_direction = edge_data["direction"].upper()
-                if target_direction != self.current_direction:
-                    self.turn_to_direction(self.current_direction, target_direction)
-                    self.current_direction = target_direction
+        self.current_route = None
+        self.current_state = "IDLE"
 
-                duration = edge_data["cost"] * self.seconds_per_grid_unit
-                self.drive_forward_until_next_node(next_node, duration)
-        finally:
-            goal_node = path[-1][0]
-            self.current_node = goal_node
-            self.current_state = "IDLE"
-            self.current_direction = "NORTH"
-            self.current_route = None
+        
+
 
     def turn_to_direction(self, current_direction, target_direction):
         """Turn the robot to face the target direction."""
@@ -85,20 +102,20 @@ class RobotNavigation:
             delta = (new_index - old_index) % 4
 
             if delta == 1:
-                self.motion.turn_90_right(speed=0.3)
+                self.motion.turn_90_right()
             elif delta == 2:
-                self.motion.turn_90_right(speed=0.3)
-                self.motion.turn_90_right(speed=0.3)
+                self.motion.turn_90_right()
+                self.motion.turn_90_right()
             elif delta == 3:
-                self.motion.turn_90_left(speed=0.3)
+                self.motion.turn_90_left()
         except ValueError as error:
             logging.error(
                 "Robot %s encountered an unknown direction: %s",
                 self.robot_id,
                 error,
             )
-        finally:
-            current_direction = target_direction
+        else:
+            self.current_direction = target_direction
 
     def notify_node_arrived(self, node, is_goal=False):
         """Notify the client that the robot has arrived at a node."""
@@ -113,69 +130,89 @@ class RobotNavigation:
 
     def drive_forward_until_intersection_node(self, next_node, duration_estimate):
         """Drive to the next node, then publish that arrival."""
-        self.motion.move_forward(speed=0.2)
-        start_time = time.time()
+        max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR+ self.GRACEPERIODDELAY
+        self.motion.move_forward(speed = self.DRIVE_SPEED)
+        start_time = time.monotonic()
         delay_notified = False  # Track whether a delay has been notified
-        CORRECTION_STEP = 0.02  # Step size for course correction
-
-        TOLERANCE_MM = 20  # Tolerance for detecting side openings in millimeters
+        seen_intersection = False  # Track whether an intersection has been detected
         
         try:
             while True:
-                elapsed_time = time.time() - start_time
+                elapsed_time = time.monotonic() - start_time
                 left_distance, right_distance = self.motion.get_LiDAR_readings()
-                difference = left_distance - right_distance
+
 
                 if left_distance is not None and right_distance is not None:
-                    if left_distance > 400 and right_distance > 400:  # Both sides are open, indicating an intersection
-                        self.motion.robot.stop()
+                    is_open = left_distance > self.OPEN_DISTANCE_THRESHOLD or right_distance > self.OPEN_DISTANCE_THRESHOLD
+
+                    if not is_open:
+                        seen_intersection = True
+                    elif seen_intersection:
                         logging.info(f"Robot {self.robot_id} detected an intersection. Stopping.")
-                        break
-                    elif abs(difference) > TOLERANCE_MM:
-                        if left_distance < right_distance:
-                            self.motion.nudge_left(CORRECTION_STEP)
-                        else:
-                            self.motion.nudge_right(CORRECTION_STEP)
-                    logging.info(f"Robot {self.robot_id} arrived at a node. Stopping.")
-                    break
+                        return True  # Indicate that the robot has reached the intersection/node
 
-                elif elapsed_time > duration_estimate and delay_notified == False:
-                    delay_duration = time.time() - start_time - duration_estimate
-                    self.notify_delay(delay_duration)
+                if not delay_notified and elapsed_time > (duration_estimate + self.GRACEPERIODDELAY):
+                    delay_duration = elapsed_time - duration_estimate
+                    self.notify_delay(elapsed_time - duration_estimate)
                     delay_notified = True  # Mark that a delay has been notified
-
+                if elapsed_time > max_wait:
+                    logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
+                    return False  # Indicate that the goal tag was not detected within the maximum wait time
 
                 time.sleep(0.05)  # Prevent busy waiting
         finally:
-            self.motion.robot.stop()
+            self.motion.stop()
+            duration = time.monotonic() - start_time
             logging.info(
-                f"Robot {self.robot_id} arrived at node {next_node}. Estimated duration: {duration_estimate:.2f} seconds."
+                f"Robot {self.robot_id} arrived at node {next_node}. At duration: {duration:.2f} seconds."
             )
-            self.current_state = "MOVING"  # Update state to E
-            self.notify_node_arrived(next_node)
 
-
+    def run_routes(self):
+        while self.pending_routes:
+            self.navigate_route(self.pending_routes.pop(0))
 
     def drive_forward_until_goaltag(self, duration_estimate):
         """Drive the robot forward until it detects the goal AprilTag."""
-        self.motion.move_forward(speed=0.2)  # Move forward with a duration estimate
+        self.motion.move_forward(speed = self.DRIVE_SPEED)  # Move forward with a duration estimate
+        start_time = time.monotonic()
+        delay_notified = False
+        
+        max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR + self.GRACEPERIODDELAY
         try:
             while True:
-                start_time = time.time()
-                delay_notified = False  # Track whether a delay has been notified
                 current_tag = self.vision.get_latest_tag()
                 if current_tag is not None:
                     logging.info(f"Robot {self.robot_id} detected AprilTag ID: {current_tag}. Stopping.")
-                    break
-                elif time.time() - start_time > duration_estimate and delay_notified == False:
-                    delay_duration = time.time() - start_time - duration_estimate
+                    return True  # Indicate that the goal tag was detected
+                elapsed_time = time.monotonic() - start_time
+                if not delay_notified and elapsed_time > duration_estimate + self.GRACEPERIODDELAY:
+                    delay_duration = elapsed_time - duration_estimate
                     self.notify_delay(delay_duration)
                     delay_notified = True  # Mark that a delay has been notified
-            time.sleep(0.1)  # Prevent busy waiting
+                if elapsed_time > max_wait:
+                    logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
+                    return False  # Indicate that the goal tag was not detected within the maximum wait time
+                
+                time.sleep(0.1)
         finally:
-            self.motion.robot.stop()
-            self.current_state = "IDLE"  # Update state to IDLE
+            self.motion.stop()
+            logging.info(f"Robot {self.robot_id} has stopped.")
 
+
+    def notify_error(self, last_known_node, expected_node):
+        """Notify the client that the robot has encountered an error."""
+        if self.on_error is not None:
+            self.on_error(last_known_node, expected_node)
+    def handle_navigation_error(self, expected_node):
+        """Handle navigation errors by notifying the client and stopping the robot."""
+        logging.error(f"Robot {self.robot_id} failed to reach expected node: {expected_node}. Stopping navigation.")
+        self.motion.stop()
+        self.current_queue.clear()  # Clear the current queue to stop further navigation
+        self.pending_routes.clear()  # Clear any pending routes
+        self.current_route = None  # Clear the current route
+        self.current_state = "ERROR"  # Update state to ERROR
+        self.notify_error(self.current_node, expected_node)
+  
 
     def check_for_side_distance(self):
         """Check for side distances using LiDAR readings."""
