@@ -23,7 +23,7 @@ class RobotNavigation:
         self.robot_id = robot_id
         self.vision = vision_system
         self.motion = robot_motion
-
+    
         self.on_node_arrived = on_node_arrived
         self.on_error = on_error
         self.current_route = None
@@ -85,9 +85,9 @@ class RobotNavigation:
                 
 
         self.current_route = None
-        self.current_state = "IDLE"
+        self.current_state = "IDLE"                 
 
-
+        
 
 
     def turn_to_direction(self, current_direction, target_direction):
@@ -153,6 +153,7 @@ class RobotNavigation:
 
                 if not delay_notified and elapsed_time > (duration_estimate + self.GRACEPERIODDELAY):
                     delay_duration = elapsed_time - duration_estimate
+                    logging.warning(f"Robot {self.robot_id} experienced a delay of {delay_duration:.2f} seconds.")
                     self.notify_delay(elapsed_time - duration_estimate)
                     delay_notified = True  # Mark that a delay has been notified
                 if elapsed_time > max_wait:

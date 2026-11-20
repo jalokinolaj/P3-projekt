@@ -22,6 +22,7 @@ class RobotMotion:
         self.turn_left_duration = self.cal.get("turn_left_duration", 0.25)
         self.turn_right_speed = self.cal.get("turn_right_speed", 0.3)
         self.turn_right_duration = self.cal.get("turn_right_duration", 0.25)
+        self.standard_voltage = self.cal.get("standard_voltage", 12.0)
 
        
 

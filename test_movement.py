@@ -20,7 +20,9 @@ def run_square_test():
     motion = RobotMotion(robot_id = ROBOT_ID)
     
     for i in range(1, 5):
-        motion.move_forward(duration=2)
+        motion.move_forward(speed=0.2)
+        time.sleep(2.0)
+        motion.stop()
         
         time.sleep(0.5)
         
@@ -30,8 +32,9 @@ def run_square_test():
         
 def run_forward():
     motion = RobotMotion(robot_id = ROBOT_ID)
-    motion.move_forward(duration=20)
-        
+    motion.move_forward(speed=0.2)
+    time.sleep(2.0)
+    motion.stop()
 if __name__ == "__main__":
     choise = int(input("1 for turntest, 2 for square test, 3 for forward test\n"))
     
