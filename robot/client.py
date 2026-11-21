@@ -13,21 +13,23 @@ from config import *
 
 
 class RobotClient:
-    def __init__(self, robot_id):
+    def __init__(self, robot_id, start_node):
         self.robot_id = robot_id
         self.state = "IDLE"
         self.current_route = []
-        self.current_node = "S0"
+        self.current_node = start_node
         self.stop_event = threading.Event()
         self.last_sent_tag = None  # Track the last sent AprilTag to avoid duplicates
         self.last_sent_node = None  # Track the last sent node to avoid duplicates
         self.motion = RobotMotion(robot_id=robot_id)
         self.vision = VisionSystem()
+        self.busy = False  # Flag to indicate if the robot is currently busy navigating a route
         self.navigation = RobotNavigation(
             robot_id,
             self.vision,
             self.motion,
             on_node_arrived=self.on_node_arrived,
+            on_error=self.on_error
         )
         self.voltage = get_voltage()
         # Bruger VERSION2 for at undgå deprecation warning
@@ -43,7 +45,7 @@ class RobotClient:
 
     def run(self):
         self.connect()
-        self.send_status(state="IDLE", node="S0")  # Initial status message
+        self.send_status(state="IDLE", node=self.current_node)  # Initial status message
 
         try:
             while not self.stop_event.is_set():
@@ -92,25 +94,20 @@ class RobotClient:
         if "route" in topic:
             path = payload.get("path")
             logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} received route: {path}")
-
-            if self.navigation.current_route is not None:
-                logging.info(f"Robot {self.robot_id} is currently moving. New route will be queued.")
-                return
             with self.route_lock:
-                if self.busy:
+                if self.busy or self.navigation.current_state == "ERROR":
                     logging.info(f"Robot {self.robot_id} is currently busy. New route will be queued.")
-                    self.navigation.pending_routes.append(path)
+                    self.send_status(state=self.navigation.current_state if self.navigation.current_state == "ERROR" else "MOVING", node=self.current_node)
                     return
                 self.busy = True
-            logging.info(f"Robot {self.robot_id} is starting navigation on the new route.")
-
+            self.last_sent_node = None  # Reset last sent node when a new route is received
             self.send_status(state="MOVING", node=self.current_node)
-            threading.Thread(target=self.navigation.navigate_route, args=(path,)).start()
+            threading.Thread(target=self.run_navigation, args=(path,), daemon=True).start()
                 
             
         
 
-        elif "command" in topic and payload.get("action") == "SHUTDOWN":
+        elif "command" in topic and payload.get("action") == "SHUTDOWN" or payload.get("action") == "RESET":
             logging.info(f"Robot {self.robot_id} is shutting down.")
             logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} received shutdown command.")
             self.stop_event.set()
@@ -119,21 +116,17 @@ class RobotClient:
     def run_navigation(self, path):
         try:
             self.navigation.navigate_route(path)
-            while True:
-                with self.route_lock:
-                    if not self.navigation.pending_routes or self.current_state == "ERROR":
-                        self.busy = False
-                        return
-                    path = self.navigation.pending_routes.pop(0)
-                self.navigation.navigate_route(path)
-        except Exception :
+        except Exception:
             logging.exception(f"Robot {self.robot_id} navigation crashed")
             self.navigation.handle_navigation_error(self.navigation.current_node)
+        finally:
             with self.route_lock:
                 self.busy = False
+            self.current_node = self.navigation.current_node
+            if self.navigation.current_state == "IDLE":
+                self.send_status(state="IDLE", node=self.navigation.current_node)
 
     def on_error(self, last_known_node, expected_node):
-        self.state = "ERROR"
         self.client.publish(f"fleet/robots/{self.robot_id}/error", json.dumps({
             "robot_id": self.robot_id,
             "last_known_node": last_known_node,
@@ -151,9 +144,9 @@ class RobotClient:
             logging.warning(f"Robot {self.robot_id} arrived at an unknown node.")
             return
         self.current_node = node
-        state = "IDLE" if is_goal else "MOVING"
-        self.state = state
-        self.send_status(state=state, node=node)
+        if is_goal:
+            return
+        self.send_status(state="MOVING", node=node)
 
 
     def send_status(self, state, node):
@@ -195,7 +188,7 @@ class RobotClient:
         self.stop_event.set()
 
 if __name__ == "__main__":
-    robot = RobotClient("robot_1")
+    robot = RobotClient("robot_1", start_node="S0")
     signal.signal(signal.SIGTERM, robot.handle_sigterm)
     robot.run()
 

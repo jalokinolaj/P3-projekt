@@ -55,13 +55,19 @@ class RobotNavigation:
                 logging.warning(f"Robot {self.robot_id} has no next node to navigate to.")
                 continue
 
-            if target_direction is None and next_eta == 0 and prev_eta is None:
+            if prev_eta is None:
                 self.current_node = next_node
                 prev_eta = next_eta
                 continue
 
             if target_direction:
                 self.turn_to_direction(self.current_direction, target_direction)
+
+            if next_node == self.current_node:
+                time.sleep(max(0, next_eta - prev_eta))  # Wait until the next estimated time of arrival
+                prev_eta = next_eta
+                continue
+
             duration_estimate = self.DEFAULT_STEP_SECONDS
             if prev_eta is not None and next_eta is not None:
                 duration_estimate = max(0, next_eta - prev_eta)
@@ -174,6 +180,8 @@ class RobotNavigation:
 
     def drive_forward_until_goaltag(self, duration_estimate):
         """Drive the robot forward until it detects the goal AprilTag."""
+        self.vision.reset_tag_detection()  # Reset the tag detection state before starting
+
         self.motion.move_forward(speed = self.DRIVE_SPEED)  # Move forward with a duration estimate
         start_time = time.monotonic()
         delay_notified = False
@@ -181,14 +189,14 @@ class RobotNavigation:
         max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR + self.GRACEPERIODDELAY
         try:
             while True:
-                current_tag = self.vision.get_latest_tag()
-                if current_tag is not None:
-                    logging.info(f"Robot {self.robot_id} detected AprilTag ID: {current_tag}. Stopping.")
+                tag = self.vision.get_latest_tag()
+                if tag is not None:
+                    logging.info(f"Robot {self.robot_id} detected AprilTag ID: {tag}. Stopping.")
                     return True  # Indicate that the goal tag was detected
+                
                 elapsed_time = time.monotonic() - start_time
                 if not delay_notified and elapsed_time > duration_estimate + self.GRACEPERIODDELAY:
-                    delay_duration = elapsed_time - duration_estimate
-                    self.notify_delay(delay_duration)
+                    self.notify_delay(elapsed_time - duration_estimate)
                     delay_notified = True  # Mark that a delay has been notified
                 if elapsed_time > max_wait:
                     logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
