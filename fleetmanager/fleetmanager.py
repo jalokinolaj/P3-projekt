@@ -16,11 +16,15 @@ class FleetManager:
         self.time_cost = time_cost
         self.shared_timetable = {}  # Shared timetable for all robots
         self.active_paths = {}  # Store active paths for each robot
+        self.robot_home = {}  # Store home nodes for each robot
+    def register_robot(self, robot_id, node):
+        self.robot_home.setdefault(robot_id, node)  # Set the home node for the robot
+        self.shared_timetable[permanent_node_key(node)] = robot_id  # Reserve the home node in the timetable
+        
 
     def request_route(self, robot_id, start_node, goal_node, start_time):
         old_path = self.active_paths.get(robot_id)
-        if old_path is not None:
-            self.remove_reservations(robot_id)
+        self.remove_reservations(robot_id)  # Remove old reservations before calculating new path
 
         path = a_star_search(
             self.adjacency_list,
@@ -35,18 +39,30 @@ class FleetManager:
         )
 
         if path is None:
-            if old_path is not None:
-                self.update_timetable(robot_id, old_path)
+            self.active_paths.pop(robot_id, None)
+            self.shared_timetable[permanent_node_key(start_node)] = robot_id
             print(f"Robot {robot_id} could not find a path from {start_node} to {goal_node}.")
             return None
 
         self.active_paths[robot_id] = path
         self.update_timetable(robot_id, path)
         return path
+    def expected_node(self, robot_id, current_time):
+        path = self.active_paths.get(robot_id)
+        if not path:
+            return None  # No active path for this robot
+        current = None
+
+        for node, _, time in path:
+            if time <= current_time:
+                current = node
+            else:
+                break
+        return current  # If current_time is beyond the last time in the path, return the last node
 
     def update_timetable(self, robot_id, path):
         # Update the shared timetable with the robot's path
-        for node, direction, time in path:
+        for node, _, time in path:
             self.shared_timetable[(node, time)] = robot_id  # Mark the edge as occupied by this robot
         for current_state, next_state in zip(path, path[1:]):
             current_node, _, current_time = current_state
@@ -73,17 +89,24 @@ class FleetManager:
     def cleanup_past_reservations(self, current_time):
         # Remove reservations that are in the past
         for key in list(self.shared_timetable.keys()):
-            if isinstance(key, tuple) and len(key) == 2:
-                node, time_val = key
-                try:
-                    time_val = int(time_val)
-                    if time_val < current_time:
-                        del self.shared_timetable[key]
-                except (ValueError, TypeError):
+            try:
+                if isinstance(key, tuple) and len(key) == 2:
+                    t = int(key[1])
+                elif isinstance(key, str) and key.startswith("edge_"):
+                    t = int(key.rsplit("_", 1)[1])
+                else:
                     continue
-                
-            elif isinstance(key, str) and key.startswith("edge_"):
-                _, node1, node2, time = key.split("_")
-                time = int(time)
-                if time < current_time:
+            except (ValueError, TypeError, OverflowError, IndexError):
+                continue
+            if t < current_time:
                     del self.shared_timetable[key]
+
+    def block_nodes(self, robot_id, nodes):
+        # Block the specified nodes for the robot in the shared timetable
+        self.remove_reservations(robot_id)  # Remove any existing reservations for this robot
+        self.active_paths.pop(robot_id, None)  # Remove the active path for this robot
+        for node in nodes:
+            if node is not None:
+                self.shared_timetable[permanent_node_key(node)] = robot_id  # Block the node for this robot
+
+                

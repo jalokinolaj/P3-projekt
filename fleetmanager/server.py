@@ -70,20 +70,22 @@ class FleetServer:
         robot_id = robot_id or topic_robot_id
         with self.lock:
             if "status" in topic:
+                
                 state = payload.get("state")
                 node = payload.get("node")
                 if node is not None:
+                    if robot_id not in self.fleet_manager.robot_home:
+                        self.fleet_manager.register_robot(robot_id, node)
                     self.robot_nodes[robot_id] = node
                 print(f"Received status from robot {robot_id}: state={state}, node={node}")
+
                 if self.robot_states.get(robot_id) == "ERROR":
-                    print(f"Robot {robot_id} was in ERROR state. Ignoring status update.")
+                    print(f"Robot {robot_id} is in ERROR state. Ignoring status message.")
                     return
+
                 self.robot_states[robot_id] = state
                 if state == "IDLE":
-                    print(f"Robot {robot_id} is IDLE. Processing next in queue.")
                     self.process_next_in_queue(robot_id)
-                else:
-                    print(f"Robot {robot_id} is {state}. Not processing queue.")
 
             elif "apriltag" in topic:
                 goal_node = payload.get("goal_node")
@@ -124,22 +126,32 @@ class FleetServer:
         if self.robot_states.get(robot_id) != "IDLE":
             print(f"Robot {robot_id} is not IDLE. Current state: {self.robot_states.get(robot_id)}")
             return
-        if not self.robot_queues[robot_id]:
-            self.robot_started[robot_id] = False
-            print(f"No queued goal nodes for robot {robot_id}. Robot is now marked as not started.")
-            return
         start_node = self.robot_nodes.get(robot_id)
         if start_node is None:
             print(f"Cannot process queue for robot {robot_id} because its current node is unknown.")
             return
-        goal = self.robot_queues[robot_id].popleft()
-        if goal == start_node:
-            self.process_next_in_queue(robot_id)
+        queue = self.robot_queues[robot_id]
+        home = self.fleet_manager.robot_home.get(robot_id)
+
+        while queue:
+            goal = queue.popleft()
+            if goal == start_node:
+                print(f"Robot {robot_id} is already at the goal node {goal}. Skipping.")
+                continue
+            if self.assign_route(robot_id, start_node, goal):
+                print(f"Assigned route to robot {robot_id} from {start_node} to {goal}.")
+                return
+            else:
+                print(f"Failed to assign route for robot {robot_id} from {start_node} to {goal}. Re-queuing the goal.")
+                queue.appendleft(goal)  # Re-queue the goal
+                return
+        if home is not None and start_node != home:
+            print(f"Robot {robot_id} has no more goals. Returning to home node {home}.")
+            if self.assign_route(robot_id, start_node, home):
+                print(f"Assigned route to robot {robot_id} from {start_node} to home node {home}.")
             return
-        if not self.assign_route(robot_id, start_node, goal):
-            print(f"Failed to assign route for robot {robot_id} from {start_node} to {goal}.")
-            self.robot_queues[robot_id].appendleft(goal)  # Re-queue the goal
-            return
+        self.robot_started[robot_id] = False
+        print(f"Robot {robot_id} has completed all tasks and returned home. Marking as not started.")
 
     def assign_route(self, robot_id, start_node, goal_node):
         self.fleet_manager.cleanup_past_reservations(self.current_time)
@@ -157,6 +169,7 @@ class FleetServer:
         })
 
         self.client.publish(topic, route_json)
+        self.robot_states[robot_id] = "MOVING"
         print(f"Published route to topic {topic}: {route_json}")
         return True
     
@@ -167,6 +180,18 @@ class FleetServer:
             self.robot_nodes[robot_id] = last_known_node
         self.robot_queues[robot_id].clear()
         self.robot_started[robot_id] = False
+        print(f"Robot {robot_id} has encountered an error and is now marked as not started.")
+        self.fleet_manager.block_nodes(robot_id, [last_known_node, expected_node])
+
+    def reset_robot(self, robot_id, confirmed_node):
+        with self.lock:
+            self.fleet_manager.remove_reservations(robot_id)
+            self.fleet_manager.active_paths.pop(robot_id, None)
+            self.fleet_manager.register_robot(robot_id, confirmed_node)
+            self.robot_nodes[robot_id] = confirmed_node
+            self.robot_states[robot_id] = "IDLE"
+            print(f"Robot {robot_id} has been reset to IDLE state and its queue cleared.")
+        
 
     def start(self):
         self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
