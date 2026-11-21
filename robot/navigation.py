@@ -197,7 +197,7 @@ class RobotNavigation:
                 elapsed_time = time.monotonic() - start_time
                 if not delay_notified and elapsed_time > duration_estimate + self.GRACEPERIODDELAY:
                     self.notify_delay(elapsed_time - duration_estimate)
-                    delay_notified = True  # Mark that a delay has been notified
+                    delay_notified = True  # Mark that a deglay has been notified
                 if elapsed_time > max_wait:
                     logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
                     return False  # Indicate that the goal tag was not detected within the maximum wait time
