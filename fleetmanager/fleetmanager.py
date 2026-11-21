@@ -89,15 +89,9 @@ class FleetManager:
     def cleanup_past_reservations(self, current_time):
         # Remove reservations that are in the past
         for key in list(self.shared_timetable.keys()):
-            try:
-                if isinstance(key, tuple) and len(key) == 2:
-                    t = int(key[1])
-                elif isinstance(key, str) and key.startswith("edge_"):
-                    t = int(key.rsplit("_", 1)[1])
-                else:
-                    continue
-            except (ValueError, TypeError, OverflowError, IndexError):
-                continue
+            if key[0] == 'permanent_node':
+                continue  # Skip permanent node reservations
+            t = key[3] if key[0] == 'edge' else key[1]  # Get the time from the key
             if t < current_time:
                     del self.shared_timetable[key]
 

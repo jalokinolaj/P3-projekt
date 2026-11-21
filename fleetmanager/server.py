@@ -20,9 +20,9 @@ SCAN_TIMEOUT = 3.5
 
 
 class FleetServer:
-    def __init__(self):
+    def __init__(self, client=None, graph_path=None):
 
-        json_path=os.path.join(project_root,"data", "adjacency_list.json")
+        json_path = graph_path or os.path.join(project_root,"data", "adjacency_list.json")
         self.adjacency_list, self.node_coordinates = load_graph_data(json_path)
         self.lock = threading.RLock()  # Lock for synchronizing access to shared resources
         self.fleet_manager = FleetManager(
@@ -43,10 +43,14 @@ class FleetServer:
 
 
 
-        self.client = mqtt.Client(
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
-            client_id="Server"
-        )
+        if client is None:
+            self.client = mqtt.Client(
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
+                client_id="Server"
+            )
+        else:
+            self.client = client
+
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
@@ -56,12 +60,16 @@ class FleetServer:
         client.subscribe("fleet/robots/+/status")
         client.subscribe("fleet/robots/+/apriltag")
         client.subscribe("fleet/robots/+/error")
+        client.subscribe("fleet/robots/+/command")
 
     def on_message(self, client, userdata, msg):
         topic = msg.topic
         try:
-            payload = json.loads(msg.payload.decode())
-        except json.JSONDecodeError:
+            raw_payload = msg.payload
+            if isinstance(raw_payload, bytes):
+                raw_payload = raw_payload.decode("utf-8")
+            payload = json.loads(raw_payload)
+        except (json.JSONDecodeError, UnicodeDecodeError):
             print(f"Received invalid JSON payload on topic {topic}: {msg.payload}")
             return
 
@@ -73,15 +81,18 @@ class FleetServer:
                 
                 state = payload.get("state")
                 node = payload.get("node")
+
+                if self.robot_states.get(robot_id) == "ERROR":
+                    print(f"Robot {robot_id} is in ERROR state. Ignoring status message.")
+                    return
+                
                 if node is not None:
                     if robot_id not in self.fleet_manager.robot_home:
                         self.fleet_manager.register_robot(robot_id, node)
                     self.robot_nodes[robot_id] = node
                 print(f"Received status from robot {robot_id}: state={state}, node={node}")
 
-                if self.robot_states.get(robot_id) == "ERROR":
-                    print(f"Robot {robot_id} is in ERROR state. Ignoring status message.")
-                    return
+                
 
                 self.robot_states[robot_id] = state
                 if state == "IDLE":
@@ -116,6 +127,9 @@ class FleetServer:
                     payload.get("last_known_node"),
                     payload.get("expected_node"),
                 )
+            elif "command" in topic:
+                if payload.get("command") == "reset":
+                    self.reset_robot(robot_id, payload.get("node"))
 
 
 

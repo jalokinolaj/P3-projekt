@@ -1,4 +1,5 @@
 import heapq
+MAX_HORIZON = 200 #Timeunit horizon for pathfinding, bigger than the furthest path + spare time.
 
 
 def heuristic(current_node, goal_node, node_coordinates):
@@ -82,6 +83,9 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
         if node_id == goal_node:
             return reconstruct_path(came_from, current_state)
 
+        if current_time - start_time > MAX_HORIZON:
+                    continue
+
         next_time_wait = current_time + time_cost
         wait_state = (node_id, current_direction, next_time_wait)
 
@@ -104,7 +108,6 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
             edge_cost = edge_data["cost"]
 
             next_time_move = current_time + edge_cost
-            neighbor_state = (neighbor_node, neighbor_dir)
             neighbor_state = (neighbor_node, neighbor_dir, next_time_move)
 
             edge_is_blocked = any(
