@@ -68,7 +68,7 @@ class RobotClient:
                         self.last_sent_tag = current_tag # Mark as sent to avoid re-sending
 
                 else:
-                    logging.info(f"Robot {self.robot_id} did not detect any AprilTag.")
+                    logging.debug(f"Robot {self.robot_id} did not detect any AprilTag.")
                     pass
 
                 time.sleep(0.1)  # Prevent busy waiting
@@ -188,6 +188,10 @@ class RobotClient:
         self.stop_event.set()
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
     robot = RobotClient("robot_1", start_node="S0")
     signal.signal(signal.SIGTERM, robot.handle_sigterm)
     robot.run()
