@@ -35,6 +35,17 @@ def test_home_and_empty_queue(server):
     send(server, "fleet/robots/robot1/status", {"robot_id": "robot1", "state": "IDLE", "node": "S0"})
     assert server.robot_started["robot1"] == False
 
+def test_finished_robot_does_not_log_not_started_without_pending_goals(server, capsys):
+    boot(server, "robot1", "S0")
+    for goal in ["D", "START_NODE_TRIGGER"]:
+        send(server, "fleet/robots/robot1/apriltag", {"robot_id": "robot1", "goal_node": goal})
+    send(server, "fleet/robots/robot1/status", {"robot_id": "robot1", "state": "IDLE", "node": "D"})
+    send(server, "fleet/robots/robot1/status", {"robot_id": "robot1", "state": "IDLE", "node": "S0"})
+
+    send(server, "fleet/robots/robot1/status", {"robot_id": "robot1", "state": "IDLE", "node": "S0"})
+
+    assert "has not started yet" not in capsys.readouterr().out
+
 def test_double_idle_does_not_send_2_routes(server):
     boot(server, "robot1", "S0")
     for g in ["D", "START_NODE_TRIGGER"]:
@@ -68,6 +79,125 @@ def test_two_robots_have_independet_queues(server):
     send(server, "fleet/robots/robot1/apriltag", {"robot_id": "robot1", "goal_node": "D"})
     assert list(server.robot_queues["robot1"]) == ["D"]
     assert list(server.robot_queues["robot2"]) == []
+
+def test_route_uses_server_monotonic_time(server, monkeypatch):
+    import fleetmanager.server as server_module
+
+    server._clock_origin = 100.0
+    monkeypatch.setattr(server_module.time, "monotonic", lambda: 102.9)
+
+    assert server.assign_route("robot1", "S0", "D")
+    assert routes(server, "robot1")[0][0][2] == 2
+    assert server.current_time == 2
+
+def test_status_route_step_records_lateness(server, monkeypatch):
+    import fleetmanager.server as server_module
+
+    now = [100.0]
+    server._clock_origin = 100.0
+    monkeypatch.setattr(server_module.time, "monotonic", lambda: now[0])
+    boot(server, "robot1", "S0")
+    assert server.assign_route("robot1", "S0", "D")
+
+    now[0] = 105.0
+    send(server, "fleet/robots/robot1/status", {
+        "robot_id": "robot1",
+        "state": "MOVING",
+        "node": "D",
+        "route_step": 1,
+    })
+
+    assert server.robot_route_steps["robot1"] == 1
+    assert server.robot_route_lateness["robot1"] == 4
+
+def test_server_detects_missing_route_step_after_grace(server, monkeypatch):
+    import fleetmanager.server as server_module
+
+    now = [100.0]
+    server._clock_origin = 100.0
+    monkeypatch.setattr(server_module.time, "monotonic", lambda: now[0])
+    boot(server, "robot1", "S0")
+    assert server.assign_route("robot1", "S0", "D")
+
+    now[0] = 105.0
+    current_time = server._refresh_current_time()
+    server._check_route_delays(current_time)
+
+    assert server.robot_route_lateness["robot1"] == 4
+    assert server.robot_delay_notified["robot1"] == 1
+
+def test_late_robot_holds_then_replans_active_goal(server, monkeypatch):
+    import fleetmanager.server as server_module
+
+    now = [100.0]
+    server._clock_origin = 100.0
+    monkeypatch.setattr(server_module.time, "monotonic", lambda: now[0])
+    boot(server, "robot1", "S0")
+    for goal in ["B", "C", "START_NODE_TRIGGER"]:
+        send(server, "fleet/robots/robot1/apriltag", {"robot_id": "robot1", "goal_node": goal})
+
+    original_route = routes(server, "robot1")[0]
+    assert original_route[-1][0] == "B"
+    assert original_route[1][0] == "A"
+    assert list(server.robot_queues["robot1"]) == ["C"]
+
+    now[0] = 106.0
+    server._check_route_delays(server._refresh_current_time())
+
+    hold_commands = [
+        payload
+        for topic, payload in server.client.published_messages
+        if topic == "fleet/robots/robot1/command"
+    ]
+    assert hold_commands == [{
+        "robot_id": "robot1",
+        "action": "HOLD_AT_NEXT_NODE",
+        "hold_request_id": 1,
+    }]
+
+    now[0] = 108.0
+    server._check_route_delays(server._refresh_current_time())
+    retried_hold_commands = [
+        payload
+        for topic, payload in server.client.published_messages
+        if topic == "fleet/robots/robot1/command"
+    ]
+    assert [payload["hold_request_id"] for payload in retried_hold_commands] == [1, 1]
+
+    send(server, "fleet/robots/robot1/status", {
+        "robot_id": "robot1",
+        "state": "HOLDING",
+        "node": "A",
+        "route_step": 1,
+        "hold_request_id": 0,
+    })
+    assert server.robot_states["robot1"] == "MOVING"
+    assert server.robot_nodes["robot1"] == "S0"
+
+    send(server, "fleet/robots/robot1/status", {
+        "robot_id": "robot1",
+        "state": "HOLDING",
+        "node": "D",
+        "route_step": 1,
+        "hold_request_id": 1,
+    })
+    assert server.robot_states["robot1"] == "MOVING"
+    assert server.robot_nodes["robot1"] == "S0"
+
+    send(server, "fleet/robots/robot1/status", {
+        "robot_id": "robot1",
+        "state": "HOLDING",
+        "node": "A",
+        "route_step": 1,
+        "hold_request_id": 1,
+    })
+
+    replanned_route = routes(server, "robot1")[1]
+    assert replanned_route[0][0] == "A"
+    assert replanned_route[-1][0] == "B"
+    assert list(server.robot_queues["robot1"]) == ["C"]
+    assert server.robot_states["robot1"] == "MOVING"
+    assert "robot1" not in server.robot_recovery_state
 
 def test_invalid_json_not_crashing(server):
     class InvalidMessage:

@@ -1,17 +1,19 @@
-# Python cache og kompilerede filer
+# Python cache and compiled files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtuelle miljøer
+# Virtual Environment
 venv/
 env/
 ENV/
 
-# Datafiler og CSV-filer (hvis de genereres dynamisk)
+# Datafiles
 *.csv
 *.json
 
-# Operativsystem-specifikke filer
+# Logfiles
 .DS_Store
 Thumbs.db
+
+.worktrees/

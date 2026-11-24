@@ -54,6 +54,7 @@ def node_is_occupied(timetable, node, time):
 
 
 def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_cost, turn_cost, timetable, start_time, time_cost):
+    """Find a route through node, direction, and time states while avoiding reservations."""
     if node_is_occupied(timetable, start_node, start_time):
         return None
     if start_node != goal_node and permanent_node_key(goal_node) in timetable:
@@ -89,6 +90,7 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
         next_time_wait = current_time + time_cost
         wait_state = (node_id, current_direction, next_time_wait)
 
+        # Waiting is represented in the route as another timed visit to this node.
         if not node_is_occupied(timetable, node_id, next_time_wait):
             tentative_gScore = gScore[current_state] + time_cost  # Cost for waiting
             if tentative_gScore < gScore.get(wait_state, float('inf')):
@@ -126,6 +128,7 @@ def a_star_search(adjacency_list, node_coordinates, start_node, goal_node, step_
             tentative_gScore = gScore[current_state] + edge_cost  # Same cost for moving to the neighbor
 
             if current_direction is not None and current_direction != neighbor_dir:
+                # This affects route preference, but not the ETA recorded in neighbor_state.
                 tentative_gScore += turn_cost  # Add turn cost if changing direction
 
             if tentative_gScore < gScore.get(neighbor_state, float('inf')):

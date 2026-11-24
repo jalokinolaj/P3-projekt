@@ -20,7 +20,6 @@ class FleetManager:
     def register_robot(self, robot_id, node):
         self.robot_home.setdefault(robot_id, node)  # Set the home node for the robot
         self.shared_timetable[permanent_node_key(node)] = robot_id  # Reserve the home node in the timetable
-        
 
     def request_route(self, robot_id, start_node, goal_node, start_time):
         old_path = self.active_paths.get(robot_id)
@@ -61,9 +60,9 @@ class FleetManager:
         return current  # If current_time is beyond the last time in the path, return the last node
 
     def update_timetable(self, robot_id, path):
-        # Update the shared timetable with the robot's path
+        # Reserve each node at its arrival time, then each edge for its full travel interval.
         for node, _, time in path:
-            self.shared_timetable[(node, time)] = robot_id  # Mark the edge as occupied by this robot
+            self.shared_timetable[(node, time)] = robot_id  # Reserve the node at its arrival time.
         for current_state, next_state in zip(path, path[1:]):
             current_node, _, current_time = current_state
             next_node, _, next_time = next_state
@@ -74,6 +73,7 @@ class FleetManager:
                 self.shared_timetable[edge_key(current_node, next_node, movement_time)] = robot_id
 
         final_node, _, _ = path[-1]
+        # Keep the destination reserved after arrival until this route is replaced.
         self.shared_timetable[permanent_node_key(final_node)] = robot_id
 
     def remove_reservations(self, robot_id):
@@ -81,6 +81,7 @@ class FleetManager:
         for key, owner in list(self.shared_timetable.items()):
             if owner == robot_id:
                 del self.shared_timetable[key]
+
 
     def reset_timetable(self):
         self.shared_timetable.clear()
@@ -102,5 +103,3 @@ class FleetManager:
         for node in nodes:
             if node is not None:
                 self.shared_timetable[permanent_node_key(node)] = robot_id  # Block the node for this robot
-
-                
