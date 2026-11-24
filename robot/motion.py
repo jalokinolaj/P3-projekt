@@ -33,6 +33,7 @@ class RobotMotion:
         if current_voltage < 9.0:
             current_voltage = 9.0
 
+        # Lower voltage needs a longer motor pulse to achieve the calibrated turn.
         return self.standard_voltage / current_voltage
 
     def smooth_stop(self, left_speed, right_speed, steps=3, delay=0.015):

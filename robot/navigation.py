@@ -1,10 +1,11 @@
 import time
 import logging
+import threading
 from typing import TYPE_CHECKING
-from robot.vision import VisionSystem
 
 if TYPE_CHECKING:
     from robot.motion import RobotMotion
+    from robot.vision import VisionSystem
 
 class RobotNavigation:
     GRACEPERIODDELAY = 3.0  # Grace period in seconds before notifying a delay
@@ -15,7 +16,7 @@ class RobotNavigation:
     def __init__(
         self,
         robot_id,
-        vision_system: VisionSystem,
+        vision_system: "VisionSystem",
         robot_motion: "RobotMotion",
         on_node_arrived=None,
         on_error=None,
@@ -33,6 +34,25 @@ class RobotNavigation:
         self.current_direction = "NORTH"  # Track the robot's current direction: "NORTH", "EAST", "SOUTH", or "WEST"
         self.current_node = None
         self.goal_node = None  # Track the goal node for the current route
+        self.current_route_step = 0  # Track the current step in the route
+        self.hold_requested = threading.Event()
+
+    def request_hold_at_next_node(self):
+        self.hold_requested.set()
+        if self.current_state == "IDLE":
+            self.current_state = "HOLDING"
+
+    def clear_hold_request(self):
+        self.hold_requested.clear()
+
+    def _hold_if_requested(self):
+        if not self.hold_requested.is_set():
+            return False
+        # This check runs at node boundaries, so an edge is never cut short.
+        self.current_route = None
+        self.current_queue.clear()
+        self.current_state = "HOLDING"
+        return True
 
     def navigate_route(self, path):
         """Navigate the robot along the specified path."""
@@ -47,8 +67,12 @@ class RobotNavigation:
         goal_node = path[-1][0]
         self.goal_node = goal_node
         prev_eta = None
+        self.current_path = path
+
 
         while self.current_queue:
+            # Route steps include waits as well as moves.
+            self.current_route_step = len(self.current_path)-len(self.current_queue)
             step = self.current_queue.pop(0)
             next_node, target_direction, next_eta = step
             if next_node is None:
@@ -58,6 +82,8 @@ class RobotNavigation:
             if prev_eta is None:
                 self.current_node = next_node
                 prev_eta = next_eta
+                if self._hold_if_requested():
+                    return
                 continue
 
             if target_direction:
@@ -66,6 +92,9 @@ class RobotNavigation:
             if next_node == self.current_node:
                 time.sleep(max(0, next_eta - prev_eta))  # Wait until the next estimated time of arrival
                 prev_eta = next_eta
+                self.notify_node_arrived(next_node)
+                if self._hold_if_requested():
+                    return
                 continue
 
             duration_estimate = self.DEFAULT_STEP_SECONDS
@@ -88,10 +117,14 @@ class RobotNavigation:
                 self.current_node = next_node
                 prev_eta = next_eta
                 self.notify_node_arrived(next_node)
+            if self._hold_if_requested():
+                return
                 
 
         self.current_route = None
-        self.current_state = "IDLE"                 
+        if self._hold_if_requested():
+            return
+        self.current_state = "IDLE"
 
         
 
@@ -127,19 +160,17 @@ class RobotNavigation:
         """Notify the client that the robot has arrived at a node."""
         self.current_node = node
         if self.on_node_arrived is not None:
-            self.on_node_arrived(node, is_goal=is_goal)
-        
-    def notify_delay(self, delay):
-        """Notify the client that the robot has experienced a delay."""
-        if self.on_node_arrived is not None:
-            self.on_node_arrived(None, delay=delay)
+            self.on_node_arrived(
+                node,
+                is_goal=is_goal,
+                route_step=self.current_route_step,
+            )
 
     def drive_forward_until_intersection_node(self, next_node, duration_estimate):
         """Drive to the next node, then publish that arrival."""
         max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR+ self.GRACEPERIODDELAY
         self.motion.move_forward(speed = self.DRIVE_SPEED)
         start_time = time.monotonic()
-        delay_notified = False  # Track whether a delay has been notified
         seen_intersection = False  # Track whether an intersection has been detected
         
         try:
@@ -157,11 +188,6 @@ class RobotNavigation:
                         logging.info(f"Robot {self.robot_id} detected an intersection. Stopping.")
                         return True  # Indicate that the robot has reached the intersection/node
 
-                if not delay_notified and elapsed_time > (duration_estimate + self.GRACEPERIODDELAY):
-                    delay_duration = elapsed_time - duration_estimate
-                    logging.warning(f"Robot {self.robot_id} experienced a delay of {delay_duration:.2f} seconds.")
-                    self.notify_delay(elapsed_time - duration_estimate)
-                    delay_notified = True  # Mark that a delay has been notified
                 if elapsed_time > max_wait:
                     logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
                     return False  # Indicate that the goal tag was not detected within the maximum wait time
@@ -184,7 +210,6 @@ class RobotNavigation:
 
         self.motion.move_forward(speed = self.DRIVE_SPEED)  # Move forward with a duration estimate
         start_time = time.monotonic()
-        delay_notified = False
         
         max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR + self.GRACEPERIODDELAY
         try:
@@ -195,9 +220,6 @@ class RobotNavigation:
                     return True  # Indicate that the goal tag was detected
                 
                 elapsed_time = time.monotonic() - start_time
-                if not delay_notified and elapsed_time > duration_estimate + self.GRACEPERIODDELAY:
-                    self.notify_delay(elapsed_time - duration_estimate)
-                    delay_notified = True  # Mark that a deglay has been notified
                 if elapsed_time > max_wait:
                     logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
                     return False  # Indicate that the goal tag was not detected within the maximum wait time

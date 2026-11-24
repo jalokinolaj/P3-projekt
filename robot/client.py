@@ -32,7 +32,7 @@ class RobotClient:
             on_error=self.on_error
         )
         self.voltage = get_voltage()
-        # Bruger VERSION2 for at undgå deprecation warning
+        # Uses version 1 of the MQTT callback API for better compatibility with the RobotClient class. Since jetbot cant use V2.
         '''self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"Robot_{robot_id}"
@@ -41,7 +41,9 @@ class RobotClient:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.route_lock = threading.Lock()  # Lock for synchronizing access to the current route
-        self.busy = False  # Flag to indicate if the robot is currently busy navigating a route
+        # QoS 1 can redeliver commands, so track both seen and unacknowledged hold IDs.
+        self.last_hold_request_id = 0
+        self.pending_hold_request_id = None
 
     def run(self):
         self.connect()
@@ -77,41 +79,72 @@ class RobotClient:
                 
 
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
-        if reason_code == 0:
+        if reason_code == 0:# Successful connection
             print(f"Robot {self.robot_id} connected successfully to MQTT broker!")
-            client.subscribe(f"fleet/robots/{self.robot_id}/route")
-            client.subscribe(f"fleet/robots/{self.robot_id}/command")
+            client.subscribe(f"fleet/robots/{self.robot_id}/route", qos=1)
+            client.subscribe(f"fleet/robots/{self.robot_id}/command", qos=1)
         else:
             print(f"Failed to connect, return code {reason_code}")
 
     def on_message(self, client, userdata, msg):
-        topic = msg.topic
         try:
-            payload = json.loads(msg.payload.decode())
+            payload = json.loads(msg.payload.decode("utf-8"))
         except json.JSONDecodeError:
-            logging.error(f"Robot {self.robot_id} received invalid JSON on topic {topic}: {msg.payload}")
+            logging.error(
+                "Robot %s received invalid JSON on topic %s: %s",
+                self.robot_id,
+                msg.topic,
+                msg.payload,
+            )
             return
-        if "route" in topic:
-            path = payload.get("path")
-            logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} received route: {path}")
-            with self.route_lock:
-                if self.busy or self.navigation.current_state == "ERROR":
-                    logging.info(f"Robot {self.robot_id} is currently busy. New route will be queued.")
-                    self.send_status(state=self.navigation.current_state if self.navigation.current_state == "ERROR" else "MOVING", node=self.current_node)
-                    return
-                self.busy = True
-            self.last_sent_node = None  # Reset last sent node when a new route is received
-            self.send_status(state="MOVING", node=self.current_node)
-            threading.Thread(target=self.run_navigation, args=(path,), daemon=True).start()
-                
-            
-        
+        if "route" in msg.topic:
+            self._handle_route(payload.get("path"))
+        elif "command" in msg.topic:
+            self._handle_command(payload)
 
-        elif "command" in topic and payload.get("action") == "SHUTDOWN" or payload.get("action") == "RESET":
-            logging.info(f"Robot {self.robot_id} is shutting down.")
-            logging.info(f"\n[RECEIVED FROM SERVER] Robot {self.robot_id} received shutdown command.")
+    def _handle_route(self, path):
+        logging.info("Robot %s received route: %s", self.robot_id, path)
+        with self.route_lock:
+            if self.busy or self.navigation.current_state == "ERROR":
+                logging.info("Robot %s is busy; ignoring the new route.", self.robot_id)
+                state = "ERROR" if self.navigation.current_state == "ERROR" else "MOVING"
+                self.send_status(state=state, node=self.current_node)
+                return
+
+            self.busy = True
+            # A replacement route means the server accepted the previous hold acknowledgement.
+            self.navigation.clear_hold_request()
+            self.pending_hold_request_id = None
+
+        self.last_sent_node = None
+        self.navigation.current_route_step = 0
+        self.send_status(state="MOVING", node=self.current_node, route_step=0)
+        threading.Thread(target=self.run_navigation, args=(path,), daemon=True).start()
+
+    def _handle_command(self, payload):
+        action = payload.get("action")
+        if action == "HOLD_AT_NEXT_NODE":
+            self._handle_hold_command(payload.get("hold_request_id"))
+        elif action in ("SHUTDOWN", "RESET"):
+            logging.info("Robot %s received shutdown command.", self.robot_id)
             self.stop_event.set()
-            logging.info(f"Robot {self.robot_id} is shutting down.")
+
+    def _handle_hold_command(self, request_id):
+        if type(request_id) is not int:
+            logging.error("Robot %s received a hold command without a valid request ID.", self.robot_id)
+            return
+
+        with self.route_lock:
+            if request_id <= self.last_hold_request_id:
+                # Ignore retries of a hold command already handled.
+                return
+
+            self.last_hold_request_id = request_id
+            self.pending_hold_request_id = request_id
+            self.navigation.request_hold_at_next_node()
+
+            if not self.busy and self.navigation.current_state == "HOLDING":
+                self._send_navigation_status(request_id)
 
     def run_navigation(self, path):
         try:
@@ -120,36 +153,51 @@ class RobotClient:
             logging.exception(f"Robot {self.robot_id} navigation crashed")
             self.navigation.handle_navigation_error(self.navigation.current_node)
         finally:
+            self.current_node = self.navigation.current_node
             with self.route_lock:
                 self.busy = False
-            self.current_node = self.navigation.current_node
-            if self.navigation.current_state == "IDLE":
-                self.send_status(state="IDLE", node=self.navigation.current_node)
+                # Keep the final status consistent with any hold command arriving now.
+                self._send_navigation_status()
+
+    def _send_navigation_status(self, hold_request_id=None):
+        state = self.navigation.current_state
+        if state not in ("IDLE", "HOLDING"):
+            return
+
+        if state == "HOLDING" and hold_request_id is None:
+            hold_request_id = self.pending_hold_request_id
+
+        self.send_status(
+            state=state,
+            node=self.navigation.current_node,
+            route_step=self.navigation.current_route_step,
+            hold_request_id=hold_request_id,
+        )
 
     def on_error(self, last_known_node, expected_node):
         self.client.publish(f"fleet/robots/{self.robot_id}/error", json.dumps({
             "robot_id": self.robot_id,
             "last_known_node": last_known_node,
             "expected_node": expected_node
-        })
+        }), qos=1)
+        
+        self.send_status(
+            state="ERROR",
+            node=last_known_node,
+            route_step=self.navigation.current_route_step,
         )
-        self.send_status(state="ERROR", node=last_known_node)
     
-    def on_node_arrived(self, node, is_goal=False, delay=None):
-        if delay is not None:
-            logging.warning(f"Robot {self.robot_id} experienced a delay of {delay:.2f} seconds at node {node}.")
-            logging.info(f"Robot {self.robot_id} arrived at node {node}. Goal: {is_goal}")
-            return
+    def on_node_arrived(self, node, is_goal=False, route_step=None):
         if node is None:
             logging.warning(f"Robot {self.robot_id} arrived at an unknown node.")
             return
         self.current_node = node
         if is_goal:
             return
-        self.send_status(state="MOVING", node=node)
+        self.send_status(state="MOVING", node=node, route_step=route_step)
 
 
-    def send_status(self, state, node):
+    def send_status(self, state, node, route_step=None, hold_request_id=None):
         """Send the robot's status to the MQTT broker."""
         self.voltage = get_voltage()  # Update the voltage reading before sending status
         payload = {
@@ -158,7 +206,12 @@ class RobotClient:
             "node": node,
             "battery_voltage": round(self.voltage, 2)  # Include battery voltage in the status message
         }
-        self.client.publish(f"fleet/robots/{self.robot_id}/status", json.dumps(payload))
+        if route_step is not None:
+            payload["route_step"] = route_step
+        if hold_request_id is not None:
+            payload["hold_request_id"] = hold_request_id
+        # QoS 1 asks MQTT to retry delivery if needed.
+        self.client.publish(f"fleet/robots/{self.robot_id}/status", json.dumps(payload), qos=1)
         logging.info(f"->Send status: state={state}, node={node}, battery_voltage={round(self.voltage, 2)}")
 
     def send_destination(self, node):
