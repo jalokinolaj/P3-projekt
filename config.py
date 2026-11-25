@@ -1,5 +1,5 @@
-ROBOT_ID = "jetbot_1"
-MQTT_BROKER = "192.168.1.65"  # Din Windows IP
+ROBOT_ID = "robot_1"
+MQTT_BROKER = "172.20.10.4"  # Din Windows IP
 MQTT_PORT = 1883
 
 TAG_TO_NODE = {

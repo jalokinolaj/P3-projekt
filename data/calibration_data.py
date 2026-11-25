@@ -12,8 +12,8 @@ ROBOT_CALIBRATIONS = {
         "standard_voltage": 12.0
     },
     #Works alright tested on 1 meter little error near end(black)
-    "jetbot_1": {
-        "left_motor_alpha": 1.05,
+    "robot_1": {
+        "left_motor_alpha": 1.077,
         "right_motor_alpha": 0.945,
         "left_motor_beta": 0.0,
         "right_motor_beta": 0.0,
