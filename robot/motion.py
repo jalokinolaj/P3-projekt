@@ -48,6 +48,9 @@ class RobotMotion:
     def move_forward(self, speed=0.2):
         self.robot.set_motors(speed, speed)
 
+    def move_with_speeds(self, left_speed, right_speed):
+        self.robot.set_motors(left_speed, right_speed)
+
     def move_backward(self, speed=0.2):
         self.robot.set_motors(-speed, -speed)
 

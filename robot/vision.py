@@ -32,7 +32,10 @@ class VisionSystem:
     def get_latest_tag(self):
         with self._lock:
             return self._latest_tag
-
+        
+    def reset_latest_tag(self):
+        with self._lock:
+            self._latest_tag = None
     def run(self):
         while self.running:
             frame = self.camera.value
