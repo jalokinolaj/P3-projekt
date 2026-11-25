@@ -9,6 +9,7 @@ from robot.motion import RobotMotion
 from robot.vision import VisionSystem
 from robot.utils import get_voltage
 from robot.navigation import RobotNavigation
+from Lidar.ld06_scan import LiDAR_Scan
 from config import *
 
 
@@ -23,11 +24,13 @@ class RobotClient:
         self.last_sent_node = None  # Track the last sent node to avoid duplicates
         self.motion = RobotMotion(robot_id=robot_id)
         self.vision = VisionSystem()
+        self.lidar_scan = LiDAR_Scan()
         self.busy = False  # Flag to indicate if the robot is currently busy navigating a route
         self.navigation = RobotNavigation(
             robot_id,
             self.vision,
             self.motion,
+            lidar_scan=self.lidar_scan,
             on_node_arrived=self.on_node_arrived,
             on_error=self.on_error
         )
@@ -115,11 +118,13 @@ class RobotClient:
 
     def run_navigation(self, path):
         try:
+            self.lidar_scan.start()  # Start the LIDAR scanning
             self.navigation.navigate_route(path)
         except Exception:
             logging.exception(f"Robot {self.robot_id} navigation crashed")
             self.navigation.handle_navigation_error(self.navigation.current_node)
         finally:
+            self.lidar_scan.close()  # Stop the LIDAR scanning
             with self.route_lock:
                 self.busy = False
             self.current_node = self.navigation.current_node

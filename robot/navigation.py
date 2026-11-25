@@ -1,7 +1,8 @@
 import time
 import logging
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from robot.vision import VisionSystem
+from Lidar.ld06_scan import LiDAR_Scan
 
 if TYPE_CHECKING:
     from robot.motion import RobotMotion
@@ -17,13 +18,15 @@ class RobotNavigation:
         robot_id,
         vision_system: VisionSystem,
         robot_motion: "RobotMotion",
+        lidar_scan: Optional[LiDAR_Scan] = None,
         on_node_arrived=None,
         on_error=None,
     ):
         self.robot_id = robot_id
         self.vision = vision_system
         self.motion = robot_motion
-    
+
+        self.lidar_scan = lidar_scan
         self.on_node_arrived = on_node_arrived
         self.on_error = on_error
         self.current_route = None
@@ -145,11 +148,19 @@ class RobotNavigation:
         try:
             while True:
                 elapsed_time = time.monotonic() - start_time
-                left_distance, right_distance = self.motion.get_LiDAR_readings()
+                if self.lidar_scan is None:
+                    raise RuntimeError("Navigation requires a LiDAR scanner")
+                left_distance, right_distance = self.lidar_scan.side_distance()
 
-
-                if left_distance is not None and right_distance is not None:
-                    is_open = left_distance > self.OPEN_DISTANCE_THRESHOLD or right_distance > self.OPEN_DISTANCE_THRESHOLD
+                available_distances = [
+                    distance for distance in (left_distance, right_distance)
+                    if distance is not None
+                ]
+                if available_distances:
+                    is_open = any(
+                        distance > self.OPEN_DISTANCE_THRESHOLD
+                        for distance in available_distances
+                    )
 
                     if not is_open:
                         seen_intersection = True
@@ -225,7 +236,9 @@ class RobotNavigation:
 
     def check_for_side_distance(self):
         """Check for side distances using LiDAR readings."""
-        self.LiDAR_left, self.LiDAR_right = self.motion.get_LiDAR_readings()
+        if self.lidar_scan is None:
+            raise RuntimeError("Navigation requires a LiDAR scanner")
+        self.LiDAR_left, self.LiDAR_right = self.lidar_scan.side_distance()
         return self.LiDAR_left, self.LiDAR_right
 
         
