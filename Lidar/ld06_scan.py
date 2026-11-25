@@ -1,6 +1,8 @@
 import serial
 import struct
 from statistics import median
+import time
+import threading
 
 # Change this to the sensor's serial port.
 SERIAL_PORT = "/dev/ttyUSB0"
@@ -122,6 +124,10 @@ class LiDAR_Scan:
         self.timeout = timeout
         self.ser = None
         self._scans = None
+        self._latest = None
+        self._lock = threading.Lock()  # Lock for thread-safe access to the serial port
+        self._running = False  # Flag to control the background thread
+        self._thread = None  # Background thread for reading scans
 
     def start(self):
         """Open the serial port and prepare the scan iterator."""
@@ -132,6 +138,38 @@ class LiDAR_Scan:
             baudrate=self.baud_rate,
             timeout=self.timeout,
         )
+        self._latest = None
+        self._running = True
+        self._thread = threading.Thread(target=self._reader, daemon=True)
+        self._thread.start()  # Start the background thread to read scans
+
+    def _reader(self):
+        try:
+            for scan in read_scans(self.ser, self.min_confidence):
+                if not self._running:
+                    break
+                with self._lock:
+                    self._latest = scan
+        except Exception:
+            pass  # Handle exceptions silently for now
+
+    def get_latest_scan(self, wait=1.0):
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline:
+            with self._lock:
+                if self._latest is not None:
+                    return self._latest
+            time.sleep(0.1)
+        return None
+    
+    def close(self):
+        self._running = False
+        if self._thread is not None:
+            self._thread.join(timeout=1.5)  # Wait for the background thread to finish
+            self._thread = None
+        if self.ser is not None:
+            self.ser.close()
+            self.ser = None
         self._scans = None
 
     def _require_started(self):
@@ -157,7 +195,9 @@ class LiDAR_Scan:
     def side_distance(self, scan=None, window_degrees=10):
         """Return (left_mm, right_mm) from a supplied or newly read scan."""
         if scan is None:
-            scan = self.get_scan()
+            scan = self.get_latest_scan()
+        if scan is None:
+            return None, None
         return side_distance(
             scan,
             window_degrees,
@@ -168,20 +208,15 @@ class LiDAR_Scan:
     def front_distance(self, scan=None, window_degrees=10):
         """Return the front distance from a supplied or newly read scan."""
         if scan is None:
-            scan = self.get_scan()
+            scan = self.get_latest_scan()
+        if scan is None:
+            return None
         return front_distance(
             scan,
             window_degrees,
             self.mount_offset,
             self.min_confidence,
         )
-
-    def close(self):
-        """Close the serial port and reset the scan iterator."""
-        if self.ser is not None:
-            self.ser.close()
-            self.ser = None
-        self._scans = None
 
     def __enter__(self):
         self.start()
@@ -194,7 +229,7 @@ class LiDAR_Scan:
 if __name__ == "__main__":
     try:
         with LiDAR_Scan() as scanner:
-            for number, scan in enumerate(scanner.read_scans(), start=1):
-                print(f"Scan {number}: {len(scan)} points")
+            while True:
+                print(scanner.side_distance())
     except KeyboardInterrupt:
         print("\nStopped.")

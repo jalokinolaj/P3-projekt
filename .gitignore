@@ -15,3 +15,5 @@ ENV/
 # Operativsystem-specifikke filer
 .DS_Store
 Thumbs.db
+
+.worktree
