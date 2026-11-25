@@ -11,7 +11,7 @@ class RobotNavigation:
     GRACEPERIODDELAY = 3.0  # Grace period in seconds before notifying a delay
     OPEN_DISTANCE_THRESHOLD = 400  # Distance threshold in millimeters to consider a side as open
     STEERING_GAIN = 0.0005  # Motor-speed adjustment per millimeter of side-distance error
-    MAX_STEERING_CORRECTION = 0.08
+    MAX_STEERING_CORRECTION = 0.04
     STEERING_DEADBAND_MM = 15
     HARD_TIMEOUT_FACTOR = 3  # Factor to multiply the estimated duration for hard timeout
     DRIVE_SPEED = 0.2  # Default drive speed for the robot
@@ -163,10 +163,10 @@ class RobotNavigation:
                 ),
             )
 
-        self.motion.move_with_speeds(
-            self.DRIVE_SPEED - correction,
-            self.DRIVE_SPEED + correction,
-        )
+        diff = 2 * correction
+        left_speed = self.DRIVE_SPEED + max(0, -diff)
+        right_speed = self.DRIVE_SPEED + max(0, diff)
+        self.motion.move_with_speeds(left_speed, right_speed)
 
     def drive_forward_until_intersection_node(self, next_node, duration_estimate):
         """Drive to the next node, then publish that arrival."""

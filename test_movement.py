@@ -1,6 +1,8 @@
 import time
 from config import ROBOT_ID
 from robot.motion import RobotMotion
+from robot.navigation import RobotNavigation
+from Lidar.ld06_scan import LiDAR_Scan
 
 
 FLOOR_PROFILE = "woodenfloor"
@@ -41,16 +43,41 @@ def rotate_run_forward():
     motion.move_forward(speed=0.2)
     time.sleep(5.0)
     motion.stop()
-if __name__ == "__main__":
-    choise = int(input("1 for turntest, 2 for square test, 3 for forward test\n"))
+
+def run_forward_with_lidar():
+    motion = RobotMotion(robot_id = ROBOT_ID)
+    lidar = LiDAR_Scan()
+    navigation = RobotNavigation(ROBOT_ID, None, motion, lidar_scan=lidar)
+
+    lidar.start()
     
-    if choise == 1:
+    try:
+        if lidar.latest_scan(wait=2.0) is None:
+            print("No LiDAR scan received within 2 seconds. Exiting.")
+            return
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < 10.0:
+            left, right = navigation.side_distance()
+            print(f"Left distance: {left} mm, Right distance: {right} mm")
+            navigation.drive_straight_with_lidar(left, right)
+            time.sleep(0.05)  # Small delay to avoid overwhelming the system
+    finally:
+        lidar.close()
+        print("\nStopping robot.")
+        motion.stop()
+if __name__ == "__main__":
+    choice = int(input("1 for turntest, 2 for square test, 3 for forward test, 4 for rotate and forward test, 5 for forward test with LiDAR\n"))
+    
+    if choice == 1:
         turntest()
         
-    if choise == 2:
+    if choice  == 2:
         run_square_test()
-    if choise == 3:
+    if choice == 3:
         run_forward()
-    if choise == 4:
+    if choice == 4:
         rotate_run_forward()
+    if choice == 5:
+        run_forward_with_lidar()
+    
         
