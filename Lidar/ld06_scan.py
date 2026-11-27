@@ -7,7 +7,7 @@ import threading
 # Change this to the sensor's serial port.
 SERIAL_PORT = "/dev/ttyUSB0"
 BAUD_RATE = 230400
-MIN_CONFIDENCE = 100
+MIN_CONFIDENCE = 150
 MOUNT_OFFSET = 270
 
 
@@ -78,7 +78,7 @@ def side_distance(
 ):
     """Return (left_mm, right_mm), using median readings around each side."""
     distances_by_side = []
-    for target_angle in ((270 + mount_offset) % 360, (90 + mount_offset) % 360):
+    for target_angle in ((315 + mount_offset) % 360, (45 + mount_offset) % 360):
         distances = [
             distance
             for angle, distance, confidence in scan
@@ -231,5 +231,6 @@ if __name__ == "__main__":
         with LiDAR_Scan() as scanner:
             while True:
                 print(scanner.side_distance())
+                time.sleep(0.5)
     except KeyboardInterrupt:
         print("\nStopped.")

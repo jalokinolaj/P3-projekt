@@ -13,8 +13,8 @@ ROBOT_CALIBRATIONS = {
     },
     #Works alright tested on 1 meter little error near end(black)
     "robot_1": {
-        "left_motor_alpha": 1.077,
-        "right_motor_alpha": 0.945,
+        "left_motor_alpha": 1.0495,
+        "right_motor_alpha": 0.955,
         "left_motor_beta": 0.0,
         "right_motor_beta": 0.0,
         "turn_left_duration": 0.236,

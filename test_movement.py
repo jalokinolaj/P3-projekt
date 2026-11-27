@@ -52,12 +52,12 @@ def run_forward_with_lidar():
     lidar.start()
     
     try:
-        if lidar.latest_scan(wait=2.0) is None:
+        if lidar.get_latest_scan(wait=2.0) is None:
             print("No LiDAR scan received within 2 seconds. Exiting.")
             return
         start_time = time.monotonic()
         while time.monotonic() - start_time < 10.0:
-            left, right = navigation.side_distance()
+            left, right = lidar.side_distance()
             print(f"Left distance: {left} mm, Right distance: {right} mm")
             navigation.drive_straight_with_lidar(left, right)
             time.sleep(0.05)  # Small delay to avoid overwhelming the system

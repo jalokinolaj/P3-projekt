@@ -9,9 +9,13 @@ if TYPE_CHECKING:
 
 class RobotNavigation:
     GRACEPERIODDELAY = 3.0  # Grace period in seconds before notifying a delay
-    OPEN_DISTANCE_THRESHOLD = 400  # Distance threshold in millimeters to consider a side as open
-    STEERING_GAIN = 0.0005  # Motor-speed adjustment per millimeter of side-distance error
-    MAX_STEERING_CORRECTION = 0.04
+    INTERSECTION_THRESHOLD = 550
+    OPEN_DISTANCE_THRESHOLD = 1100  # Distance threshold in millimeters to consider a side as open
+    STEERING_KP = 0.00025  # Motor-speed adjustment per millimeter of side-distance error
+    STEERING_KD = 0.0004
+    MAX_STEERING_CORRECTION = 0.025
+    MAX_WALL_DIST_MM = 600
+    TARGET_HALF_WIDTH_MM = 400 
     STEERING_DEADBAND_MM = 15
     HARD_TIMEOUT_FACTOR = 3  # Factor to multiply the estimated duration for hard timeout
     DRIVE_SPEED = 0.2  # Default drive speed for the robot
@@ -39,6 +43,7 @@ class RobotNavigation:
         self.current_direction = "NORTH"  # Track the robot's current direction: "NORTH", "EAST", "SOUTH", or "WEST"
         self.current_node = None
         self.goal_node = None  # Track the goal node for the current route
+        self._prev_error = 0.0
 
     def navigate_route(self, path):
         """Navigate the robot along the specified path."""
@@ -141,32 +146,48 @@ class RobotNavigation:
             self.on_node_arrived(None, delay=delay)
 
     def drive_straight_with_lidar(self, left_distance, right_distance):
-        """Center between two visible side walls while continuing forward."""
-        if (
-            left_distance is None
-            or right_distance is None
-            or left_distance > self.OPEN_DISTANCE_THRESHOLD
-            or right_distance > self.OPEN_DISTANCE_THRESHOLD
-        ):
+        """Center between angled walls using PD control."""
+        distance_error = 0.0  # Sikrer at variablen altid findes
+
+        left_valid = left_distance is not None and left_distance <= self.OPEN_DISTANCE_THRESHOLD
+        right_valid = right_distance is not None and right_distance <= self.OPEN_DISTANCE_THRESHOLD
+
+        # Hvis begge sider er åbne (reelt kryds), kør ligeud og nulstil PD
+        if not left_valid and not right_valid:
+            self._prev_error = 0.0
             self.motion.move_forward(speed=self.DRIVE_SPEED)
             return
 
-        distance_error = left_distance - right_distance
-        if abs(distance_error) <= self.STEERING_DEADBAND_MM:
+        # Beregn distance_error ud fra de gyldige sider
+        if left_valid and right_valid:
+            left_clamped = min(left_distance, self.MAX_WALL_DIST_MM)
+            right_clamped = min(right_distance, self.MAX_WALL_DIST_MM)
+            distance_error = left_clamped - right_clamped
+        elif left_valid:
+            left_clamped = min(left_distance, self.MAX_WALL_DIST_MM)
+            distance_error = left_clamped - self.TARGET_HALF_WIDTH_MM
+        elif right_valid:
+            right_clamped = min(right_distance, self.MAX_WALL_DIST_MM)
+            distance_error = self.TARGET_HALF_WIDTH_MM - right_clamped
+
+        # Udregn error_rate (D-leddet) og opdater _prev_error
+        error_rate = distance_error - self._prev_error
+        self._prev_error = distance_error
+
+        if abs(distance_error) <= self.STEERING_DEADBAND_MM and abs(error_rate) < 5:
             correction = 0.0
         else:
+            raw_correction = (distance_error * self.STEERING_KP) + (error_rate * self.STEERING_KD)
             correction = max(
                 -self.MAX_STEERING_CORRECTION,
-                min(
-                    self.MAX_STEERING_CORRECTION,
-                    distance_error * self.STEERING_GAIN,
-                ),
+                min(self.MAX_STEERING_CORRECTION, raw_correction),
             )
 
         diff = 2 * correction
-        left_speed = self.DRIVE_SPEED + max(0, -diff)
-        right_speed = self.DRIVE_SPEED + max(0, diff)
+        left_speed = self.DRIVE_SPEED + max(0.0, -diff)
+        right_speed = self.DRIVE_SPEED + max(0.0, diff)
         self.motion.move_with_speeds(left_speed, right_speed)
+        print(f"L:{left_distance} R:{right_distance} -> left:{left_speed:.3f}, right:{right_speed:.3f}")
 
     def drive_forward_until_intersection_node(self, next_node, duration_estimate):
         """Drive to the next node, then publish that arrival."""
