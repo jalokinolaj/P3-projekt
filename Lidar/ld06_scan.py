@@ -78,7 +78,7 @@ def side_distance(
 ):
     """Return (left_mm, right_mm), using median readings around each side."""
     distances_by_side = []
-    for target_angle in ((315 + mount_offset) % 360, (45 + mount_offset) % 360):
+    for target_angle in ((270 + mount_offset) % 360, (90 + mount_offset) % 360):
         distances = [
             distance
             for angle, distance, confidence in scan
@@ -87,6 +87,24 @@ def side_distance(
         ]
         distances_by_side.append(int(median(distances)) if distances else None)
     return tuple(distances_by_side)
+
+def diagonal_distance(
+    scan,
+    window_degrees=10,
+    mount_offset=MOUNT_OFFSET,
+    min_confidence=MIN_CONFIDENCE,
+    ):
+        """Return (left_mm, right_mm), using median readings around each diagonal."""
+        distances_by_diagonal = []
+        for target_angle in ((315 + mount_offset) % 360, (45 + mount_offset) % 360):
+            distances = [
+                distance
+                for angle, distance, confidence in scan
+                if confidence >= min_confidence
+                and _angle_difference(angle, target_angle) <= window_degrees
+            ]
+            distances_by_diagonal.append(int(median(distances)) if distances else None)
+        return tuple(distances_by_diagonal)
 
 
 def front_distance(
@@ -159,7 +177,7 @@ class LiDAR_Scan:
             with self._lock:
                 if self._latest is not None:
                     return self._latest
-            time.sleep(0.1)
+            time.sleep(0.01)
         return None
     
     def close(self):
@@ -192,31 +210,20 @@ class LiDAR_Scan:
         """Return the next complete scan."""
         return next(self.read_scans())
 
-    def side_distance(self, scan=None, window_degrees=10):
-        """Return (left_mm, right_mm) from a supplied or newly read scan."""
-        if scan is None:
-            scan = self.get_latest_scan()
-        if scan is None:
-            return None, None
-        return side_distance(
-            scan,
-            window_degrees,
-            self.mount_offset,
-            self.min_confidence,
-        )
-
-    def front_distance(self, scan=None, window_degrees=10):
-        """Return the front distance from a supplied or newly read scan."""
-        if scan is None:
-            scan = self.get_latest_scan()
+    def get_distance(self):
+        scan = self.get_latest_scan()
         if scan is None:
             return None
-        return front_distance(
-            scan,
-            window_degrees,
-            self.mount_offset,
-            self.min_confidence,
-        )
+        left, right = side_distance(scan, 10, self.mount_offset, self.min_confidence)
+        left_diag, right_diag = diagonal_distance(scan, 10, self.mount_offset, self.min_confidence)
+        front = front_distance(scan, 10, self.mount_offset, self.min_confidence)
+        return {
+            "left": left,
+            "right": right,
+            "left_diagonal": left_diag,
+            "right_diagonal": right_diag,
+            "front": front
+        }
 
     def __enter__(self):
         self.start()
@@ -230,7 +237,7 @@ if __name__ == "__main__":
     try:
         with LiDAR_Scan() as scanner:
             while True:
-                print(scanner.side_distance())
+                print(scanner.get_distance())
                 time.sleep(0.5)
     except KeyboardInterrupt:
         print("\nStopped.")

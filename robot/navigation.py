@@ -192,59 +192,42 @@ class RobotNavigation:
     def drive_forward_until_intersection_node(self, next_node, duration_estimate):
         """Drive to the next node, then publish that arrival."""
         max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR+ self.GRACEPERIODDELAY
-        self.motion.move_forward(speed = self.DRIVE_SPEED)
         start_time = time.monotonic()
         delay_notified = False  # Track whether a delay has been notified
         seen_intersection = False  # Track whether an intersection has been detected
+        self._prev_error = 0.0  # Reset the previous error for PD control
         
         try:
             while True:
                 elapsed_time = time.monotonic() - start_time
-                if self.lidar_scan is None:
-                    raise RuntimeError("Navigation requires a LiDAR scanner")
-                left_distance, right_distance = self.lidar_scan.side_distance()
-
-                available_distances = [
-                    distance for distance in (left_distance, right_distance)
-                    if distance is not None
-                ]
-                if available_distances:
-                    is_open = any(
-                        distance > self.OPEN_DISTANCE_THRESHOLD
-                        for distance in available_distances
-                    )
-
-                    if not is_open:
-                        self.drive_straight_with_lidar(
-                            left_distance,
-                            right_distance,
-                        )
-                        seen_intersection = True
-                    else:
-                        self.motion.move_forward(speed=self.DRIVE_SPEED)
-                        if seen_intersection:
-                            logging.info(f"Robot {self.robot_id} detected an intersection. Stopping.")
-                            return True  # Indicate that the robot has reached the intersection/node
-                else:
+                dist = self.lidar_scan.get_distance()
+                if dist is None:
                     self.motion.move_forward(speed=self.DRIVE_SPEED)
+                else:
+                    self.drive_straight_with_lidar(dist["left_diagonal"], dist["right_diagonal"])
+                    sides = [d for d in [dist["left"], dist["right"]] if d is not None]
+                    if sides:
+                        if any(d > self.OPEN_DISTANCE_THRESHOLD for d in sides):
+                            if seen_intersection:
+                                logging.info(f"Robot {self.robot_id} detected an intersection. Stopping.")
+                                time.sleep(0.5)  # Small delay to ensure the robot has stopped before returning
+                                return True  # Indicate that the robot has reached the intersection/node
 
-                if not delay_notified and elapsed_time > (duration_estimate + self.GRACEPERIODDELAY):
-                    delay_duration = elapsed_time - duration_estimate
-                    logging.warning(f"Robot {self.robot_id} experienced a delay of {delay_duration:.2f} seconds.")
-                    self.notify_delay(elapsed_time - duration_estimate)
-                    delay_notified = True  # Mark that a delay has been notified
-                if elapsed_time > max_wait:
-                    logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
-                    return False  # Indicate that the goal tag was not detected within the maximum wait time
+                            else:
+                                seen_intersection = True  # Mark that an intersection has been detected
+                    if not delay_notified and elapsed_time > (duration_estimate + self.GRACEPERIODDELAY):
+                        self.notify_delay(elapsed_time - duration_estimate)
+                        delay_notified = True  # Mark that a delay has been notified
+                    if elapsed_time > max_wait:
+                        logging.error(f"Robot {self.robot_id} exceeded maximum wait time of {max_wait:.2f} seconds. Stopping.")
+                        return False  # Indicate that the goal tag was not detected within the maximum wait time
 
-                time.sleep(0.05)  # Prevent busy waiting
+                    time.sleep(0.05)  # Prevent busy waiting
         finally:
             self.motion.stop()
-            duration = time.monotonic() - start_time
             logging.info(
-                f"Robot {self.robot_id} arrived at node {next_node}. At duration: {duration:.2f} seconds."
+                f"Robot {self.robot_id} arrived at node {next_node}. At duration: {elapsed_time:.2f} seconds."
             )
-
     def run_routes(self):
         while self.pending_routes:
             self.navigate_route(self.pending_routes.pop(0))
@@ -255,7 +238,7 @@ class RobotNavigation:
 
         start_time = time.monotonic()
         delay_notified = False
-        
+        self._prev_error = 0.0  # Reset the previous error for PD control
         max_wait = duration_estimate * self.HARD_TIMEOUT_FACTOR + self.GRACEPERIODDELAY
         try:
             while True:
@@ -268,11 +251,15 @@ class RobotNavigation:
 
                 if self.lidar_scan is None:
                     raise RuntimeError("Navigation requires a LiDAR scanner")
-                left_distance, right_distance = self.lidar_scan.side_distance()
-                self.drive_straight_with_lidar(left_distance, right_distance)
+                dist = self.lidar_scan.get_distance()
+                if dist is None:
+                    self.motion.move_forward(speed=self.DRIVE_SPEED)
+                else:
+                    self.drive_straight_with_lidar(dist["left_diagonal"], dist["right_diagonal"])
                 
                 if not delay_notified and elapsed_time > duration_estimate + self.GRACEPERIODDELAY:
                     self.notify_delay(elapsed_time - duration_estimate)
+                    self.vision.reset_latest_tag()  # Reset the latest tag after notifying the delay
                     self.vision.reset_latest_tag()  # Reset the latest tag after notifying the delay
                     delay_notified = True  # Mark that a deglay has been notified
 
@@ -311,6 +298,4 @@ class RobotNavigation:
 
         
 
-        
-
-
+    
